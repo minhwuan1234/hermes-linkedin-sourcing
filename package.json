@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "browser:open": "tsx src/browser/open-browser.ts"
+    "browser:open": "tsx src/browser/open-browser.ts",
     "linkedin:search": "tsx src/browser/search-linkedin.ts"
   },
   "dependencies": {
