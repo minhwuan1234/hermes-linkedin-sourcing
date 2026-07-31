@@ -16,49 +16,89 @@ async function applyLocationFilter(
 ): Promise<void> {
   if (!location) return;
 
-  const locationsButton = page.getByRole("button", {
-    name: /^Locations$/i
+  console.log("[1] Tìm nút Locations...");
+
+  const locationsButton = page
+    .getByRole("button", { name: /locations/i })
+    .first();
+
+  console.log(
+    `[1] Số nút Locations tìm thấy: ${await locationsButton.count()}`
+  );
+
+  await locationsButton.waitFor({
+    state: "visible",
+    timeout: 20_000
   });
 
   await locationsButton.click();
 
-  const popup = page.locator(
-    '.artdeco-hoverable-content, [role="dialog"]'
-  ).last();
+  console.log("[2] Đã mở Locations.");
 
-  await popup.waitFor({
+  const input = page.getByPlaceholder(/add a location/i).first();
+
+  console.log(
+    `[2] Số ô Add a location tìm thấy: ${await input.count()}`
+  );
+
+  await input.waitFor({
     state: "visible",
-    timeout: 15_000
+    timeout: 20_000
   });
-
-  const input = popup.getByPlaceholder(/add a location/i);
 
   await input.fill(location);
 
-  const suggestion = popup
-    .locator('[role="option"], li')
-    .filter({ hasText: location })
-    .first();
+  console.log(`[3] Đã nhập: ${location}`);
+
+  await page.waitForTimeout(2_000);
+
+  const possibleOptions = page.locator(
+    '[role="option"], [role="listbox"] li, li'
+  );
+
+  const optionTexts = await possibleOptions.allTextContents();
+
+  console.log("[4] Các option/li đang thấy:");
+  console.log(
+    optionTexts
+      .map((text) => text.trim())
+      .filter(Boolean)
+      .slice(0, 30)
+  );
+
+  const suggestion = page
+    .getByText(location, { exact: true })
+    .filter({ visible: true })
+    .last();
+
+  console.log(
+    `[5] Số suggestion chính xác tìm thấy: ${await suggestion.count()}`
+  );
 
   await suggestion.waitFor({
     state: "visible",
-    timeout: 15_000
+    timeout: 20_000
   });
 
   await suggestion.click();
 
-  const showResultsButton = popup.getByRole("button", {
-    name: /show results/i
-  });
+  console.log("[6] Đã chọn location.");
+
+  const showResultsButton = page
+    .getByRole("button", { name: /show results/i })
+    .filter({ visible: true })
+    .last();
+
+  console.log(
+    `[7] Số nút Show results: ${await showResultsButton.count()}`
+  );
 
   await showResultsButton.click();
 
-  await page.waitForURL(
-    /linkedin\.com\/search\/results\/people/,
-    { timeout: 30_000 }
-  );
-}
+  console.log("[8] Đã click Show results.");
 
+  await page.waitForTimeout(3_000);
+}
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
   const location = getArgument("location");
