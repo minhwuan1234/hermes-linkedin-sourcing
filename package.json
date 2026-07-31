@@ -1,1 +1,5 @@
-
+{
+  "scripts": {
+    "browser:open": "tsx src/browser/open-browser.ts"
+  }
+}
