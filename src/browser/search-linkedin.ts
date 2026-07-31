@@ -46,29 +46,41 @@ async function applyLocationFilter(
   console.log("[3] Đã chọn location suggestion");
 
   const showResultsButton = page
-    .getByRole("button", { name: /^Show results$/i })
-    .last();
+  .locator("button")
+  .filter({ hasText: "Show results", visible: true })
+  .last();
 
-  await showResultsButton.waitFor({
-    state: "visible",
+if (await showResultsButton.count()) {
+  await showResultsButton.scrollIntoViewIfNeeded();
+  await showResultsButton.click({
+    force: true,
     timeout: 20_000
   });
+} else {
+  const clicked = await page.evaluate(() => {
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    );
 
-  await showResultsButton.click();
+    const button = buttons.find(
+      (item) =>
+        item.innerText.trim() === "Show results" &&
+        item.offsetParent !== null
+    );
 
-  console.log("[4] Đã bấm Show results");
+    if (!button) return false;
 
-  await page.waitForTimeout(3_000);
+    button.click();
+    return true;
+  });
 
-  await page.waitForURL(
-    /linkedin\.com\/search\/results\/people/,
-    {
-      timeout: 30_000
-    }
-  );
-
-  console.log(`[5] Trang kết quả: ${page.url()}`);
+  if (!clicked) {
+    throw new Error("Không tìm thấy nút Show results.");
+  }
 }
+
+console.log("[5] Đã bấm Show results");
+await page.waitForTimeout(3_000);
 
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
