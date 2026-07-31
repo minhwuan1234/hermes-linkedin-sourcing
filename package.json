@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "browser:open": "tsx src/browser/open-browser.ts"
+    "linkedin:search": "tsx src/browser/search-linkedin.ts"
   },
   "dependencies": {
     "playwright": "^1.54.0"
@@ -14,10 +15,4 @@
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
-  {
-  "scripts": {
-    "browser:open": "tsx src/browser/open-browser.ts",
-    "linkedin:search": "tsx src/browser/search-linkedin.ts"
-  }
-}
 }
