@@ -14,62 +14,29 @@ function getArgument(name: string): string {
 }
 
 async function clickShowResults(page: Page): Promise<void> {
-  const showResultsButton = page
-    .locator("button")
-    .filter({
-      hasText: "Show results",
-      visible: true
-    })
+  const showResultsText = page
+    .getByText(/^Show results$/i, { exact: true })
     .last();
 
-  const buttonCount = await showResultsButton.count();
-
-  console.log(
-    `[4] Số nút Show results tìm thấy: ${buttonCount}`
-  );
-
-  if (buttonCount > 0) {
-    await showResultsButton.scrollIntoViewIfNeeded();
-
-    await showResultsButton.click({
-      force: true,
-      timeout: 20_000
-    });
-
-    console.log("[5] Đã bấm Show results bằng Playwright");
-    return;
-  }
-
-  const clickedByDom = await page.evaluate(() => {
-    const buttons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button")
-    );
-
-    const button = buttons.find((item) => {
-      const text = item.innerText.trim();
-
-      const isVisible =
-        item.offsetParent !== null &&
-        window.getComputedStyle(item).visibility !== "hidden";
-
-      return text === "Show results" && isVisible;
-    });
-
-    if (!button) {
-      return false;
-    }
-
-    button.click();
-    return true;
+  await showResultsText.waitFor({
+    state: "visible",
+    timeout: 20_000
   });
 
-  if (!clickedByDom) {
-    throw new Error(
-      "Không tìm thấy nút Show results đang hiển thị."
-    );
-  }
+  console.log(
+    `[4] Số phần tử Show results tìm thấy: ${await showResultsText.count()}`
+  );
 
-  console.log("[5] Đã bấm Show results bằng DOM");
+  await showResultsText.scrollIntoViewIfNeeded();
+
+  await showResultsText.click({
+    force: true,
+    timeout: 20_000
+  });
+
+  console.log("[5] Đã bấm Show results");
+
+  await page.waitForTimeout(3_000);
 }
 
 async function applyLocationFilter(
