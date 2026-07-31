@@ -20,3 +20,4 @@
     "linkedin:search": "tsx src/browser/search-linkedin.ts"
   }
 }
+}
