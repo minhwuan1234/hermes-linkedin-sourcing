@@ -10,6 +10,7 @@ function getArgument(name: string): string {
   return argument?.slice(prefix.length).trim() ?? "";
 }
 
+
 async function applyLocationFilter(
   page: Page,
   location: string
@@ -68,6 +69,7 @@ async function applyLocationFilter(
 
   console.log(`[5] Trang kết quả: ${page.url()}`);
 }
+
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
   const location = getArgument("location");
