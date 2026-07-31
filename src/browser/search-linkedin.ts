@@ -5,20 +5,88 @@ const profilePath = path.resolve("data", "chrome-profile");
 
 function getArgument(name: string): string {
   const prefix = `--${name}=`;
-  const argument = process.argv.find((item) => item.startsWith(prefix));
+
+  const argument = process.argv.find((item) =>
+    item.startsWith(prefix)
+  );
 
   return argument?.slice(prefix.length).trim() ?? "";
 }
 
+async function clickShowResults(page: Page): Promise<void> {
+  const showResultsButton = page
+    .locator("button")
+    .filter({
+      hasText: "Show results",
+      visible: true
+    })
+    .last();
+
+  const buttonCount = await showResultsButton.count();
+
+  console.log(
+    `[4] Số nút Show results tìm thấy: ${buttonCount}`
+  );
+
+  if (buttonCount > 0) {
+    await showResultsButton.scrollIntoViewIfNeeded();
+
+    await showResultsButton.click({
+      force: true,
+      timeout: 20_000
+    });
+
+    console.log("[5] Đã bấm Show results bằng Playwright");
+    return;
+  }
+
+  const clickedByDom = await page.evaluate(() => {
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button")
+    );
+
+    const button = buttons.find((item) => {
+      const text = item.innerText.trim();
+
+      const isVisible =
+        item.offsetParent !== null &&
+        window.getComputedStyle(item).visibility !== "hidden";
+
+      return text === "Show results" && isVisible;
+    });
+
+    if (!button) {
+      return false;
+    }
+
+    button.click();
+    return true;
+  });
+
+  if (!clickedByDom) {
+    throw new Error(
+      "Không tìm thấy nút Show results đang hiển thị."
+    );
+  }
+
+  console.log("[5] Đã bấm Show results bằng DOM");
+}
 
 async function applyLocationFilter(
   page: Page,
   location: string
 ): Promise<void> {
-  if (!location) return;
+  if (!location) {
+    console.log("[Location] Không có location filter.");
+    return;
+  }
+
+  console.log("[1] Mở Locations filter");
 
   const locationsButton = page
-    .getByRole("button", { name: /locations/i })
+    .getByRole("button", {
+      name: /locations/i
+    })
     .first();
 
   await locationsButton.waitFor({
@@ -27,6 +95,8 @@ async function applyLocationFilter(
   });
 
   await locationsButton.click();
+
+  console.log("[2] Đã mở Locations filter");
 
   const locationInput = page
     .getByPlaceholder(/add a location/i)
@@ -38,49 +108,35 @@ async function applyLocationFilter(
   });
 
   await locationInput.fill(location);
+
+  console.log(`[3] Đã nhập location: ${location}`);
+
   await page.waitForTimeout(2_000);
 
+  // Chọn suggestion đầu tiên bằng keyboard.
+  // Không click theo text để tránh mở nhầm profile ứng viên.
   await locationInput.press("ArrowDown");
+  await page.waitForTimeout(300);
   await locationInput.press("Enter");
 
-  console.log("[3] Đã chọn location suggestion");
+  console.log("[3.1] Đã chọn location suggestion");
 
-  const showResultsButton = page
-  .locator("button")
-  .filter({ hasText: "Show results", visible: true })
-  .last();
+  await page.waitForTimeout(1_000);
 
-if (await showResultsButton.count()) {
-  await showResultsButton.scrollIntoViewIfNeeded();
-  await showResultsButton.click({
-    force: true,
-    timeout: 20_000
-  });
-} else {
-  const clicked = await page.evaluate(() => {
-    const buttons = Array.from(
-      document.querySelectorAll<HTMLButtonElement>("button")
+  await clickShowResults(page);
+
+  await page.waitForTimeout(3_000);
+
+  const currentUrl = page.url();
+
+  if (!currentUrl.includes("/search/results/people")) {
+    throw new Error(
+      `Sau khi áp dụng location, trang bị chuyển sai URL: ${currentUrl}`
     );
-
-    const button = buttons.find(
-      (item) =>
-        item.innerText.trim() === "Show results" &&
-        item.offsetParent !== null
-    );
-
-    if (!button) return false;
-
-    button.click();
-    return true;
-  });
-
-  if (!clicked) {
-    throw new Error("Không tìm thấy nút Show results.");
   }
-}
 
-console.log("[5] Đã bấm Show results");
-await page.waitForTimeout(3_000);
+  console.log(`[6] URL sau filter: ${currentUrl}`);
+}
 
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
@@ -97,20 +153,30 @@ async function main(): Promise<void> {
   );
 
   searchUrl.searchParams.set("keywords", keyword);
-  searchUrl.searchParams.set("origin", "GLOBAL_SEARCH_HEADER");
+  searchUrl.searchParams.set(
+    "origin",
+    "GLOBAL_SEARCH_HEADER"
+  );
 
-  const context = await chromium.launchPersistentContext(profilePath, {
-    channel: "chrome",
-    headless: false,
-    viewport: null,
-    args: [
-      "--start-maximized",
-      "--no-first-run",
-      "--no-default-browser-check"
-    ]
-  });
+  const context = await chromium.launchPersistentContext(
+    profilePath,
+    {
+      channel: "chrome",
+      headless: false,
+      viewport: null,
+      args: [
+        "--start-maximized",
+        "--no-first-run",
+        "--no-default-browser-check"
+      ]
+    }
+  );
 
+  // Luôn mở tab mới để không tiếp tục từ profile cũ.
   const page = await context.newPage();
+
+  console.log("[Search] Đang mở danh sách ứng viên...");
+  console.log(`[Search] Keyword: ${keyword}`);
 
   await page.goto(searchUrl.toString(), {
     waitUntil: "domcontentloaded",
@@ -119,15 +185,24 @@ async function main(): Promise<void> {
 
   await page.waitForURL(
     /linkedin\.com\/search\/results\/people/,
-    { timeout: 30_000 }
+    {
+      timeout: 30_000
+    }
   );
+
+  console.log("[Search] Đã mở danh sách ứng viên.");
+  console.log(`[Search] URL: ${page.url()}`);
 
   await applyLocationFilter(page, location);
 
-  console.log("Đã mở danh sách ứng viên.");
+  console.log("");
+  console.log("Hoàn thành.");
   console.log(`Keyword: ${keyword}`);
-  console.log(`Location: ${location || "Không sử dụng"}`);
-  console.log(`URL: ${page.url()}`);
+  console.log(
+    `Location: ${location || "Không sử dụng"}`
+  );
+  console.log(`URL cuối: ${page.url()}`);
+  console.log("Đóng Chrome để kết thúc.");
 
   await new Promise<void>((resolve) => {
     context.once("close", resolve);
@@ -135,6 +210,14 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("LinkedIn search error:", error);
+  console.error("LinkedIn search error:");
+
+  if (error instanceof Error) {
+    console.error(error.message);
+    console.error(error.stack);
+  } else {
+    console.error(error);
+  }
+
   process.exit(1);
 });
