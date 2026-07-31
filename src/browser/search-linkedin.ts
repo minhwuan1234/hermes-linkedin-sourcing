@@ -22,28 +22,30 @@ async function applyLocationFilter(
 
   await locationsButton.click();
 
-  const popup = page.locator('[role="dialog"], .artdeco-hoverable-content').last();
+  const popup = page.locator(
+    '.artdeco-hoverable-content, [role="dialog"]'
+  ).last();
 
   await popup.waitFor({
     state: "visible",
     timeout: 15_000
   });
 
-  const input = popup.locator('input[type="text"]').first();
+  const input = popup.getByPlaceholder(/add a location/i);
 
   await input.fill(location);
 
-  const option = popup
-    .getByRole("option")
+  const suggestion = popup
+    .locator('[role="option"], li')
     .filter({ hasText: location })
     .first();
 
-  await option.waitFor({
+  await suggestion.waitFor({
     state: "visible",
     timeout: 15_000
   });
 
-  await option.click();
+  await suggestion.click();
 
   const showResultsButton = popup.getByRole("button", {
     name: /show results/i
