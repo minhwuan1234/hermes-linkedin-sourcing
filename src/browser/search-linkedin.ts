@@ -1,4 +1,4 @@
-import { chromium, type Page } from "playwright";
+import { chromium } from "playwright";
 import path from "node:path";
 
 const profilePath = path.resolve("data", "chrome-profile");
@@ -10,59 +10,8 @@ function getArgument(name: string): string {
   return argument?.slice(prefix.length).trim() ?? "";
 }
 
-async function applyLocationFilter(
-  page: Page,
-  location: string
-): Promise<void> {
-  if (!location) {
-    return;
-  }
-
-  const locationsButton = page.getByRole("button", {
-    name: /locations/i
-  });
-
-  await locationsButton.waitFor({
-    state: "visible",
-    timeout: 30_000
-  });
-
-  await locationsButton.click();
-
-  const locationInput = page.locator(
-    'input[placeholder*="location" i], input[aria-label*="location" i]'
-  ).last();
-
-  await locationInput.waitFor({
-    state: "visible",
-    timeout: 15_000
-  });
-
-  await locationInput.fill(location);
-
-  const suggestion = page.getByText(location, {
-    exact: false
-  }).last();
-
-  await suggestion.waitFor({
-    state: "visible",
-    timeout: 15_000
-  });
-
-  await suggestion.click();
-
-  const showResultsButton = page.getByRole("button", {
-    name: /show results/i
-  });
-
-  await showResultsButton.click();
-
-  await page.waitForLoadState("domcontentloaded");
-}
-
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
-  const location = getArgument("location");
 
   if (!keyword) {
     throw new Error(
@@ -75,10 +24,7 @@ async function main(): Promise<void> {
   );
 
   searchUrl.searchParams.set("keywords", keyword);
-  searchUrl.searchParams.set(
-    "origin",
-    "GLOBAL_SEARCH_HEADER"
-  );
+  searchUrl.searchParams.set("origin", "GLOBAL_SEARCH_HEADER");
 
   const context = await chromium.launchPersistentContext(
     profilePath,
@@ -94,22 +40,28 @@ async function main(): Promise<void> {
     }
   );
 
-  const page =
-    context.pages()[0] ?? await context.newPage();
+  // Luôn tạo tab mới để không tiếp tục từ profile cũ
+  const page = await context.newPage();
+
+  console.log("Đang mở danh sách ứng viên...");
+  console.log(`Keyword: ${keyword}`);
 
   await page.goto(searchUrl.toString(), {
     waitUntil: "domcontentloaded",
     timeout: 60_000
   });
 
-  await applyLocationFilter(page, location);
-
-  console.log("LinkedIn search opened.");
-  console.log(`Keyword: ${keyword}`);
-  console.log(
-    `Location filter: ${location || "Không sử dụng"}`
+  // Chờ URL xác nhận đang ở trang danh sách People Search
+  await page.waitForURL(
+    /linkedin\.com\/search\/results\/people/,
+    {
+      timeout: 30_000
+    }
   );
+
+  console.log("Đã mở danh sách ứng viên.");
   console.log(`URL: ${page.url()}`);
+  console.log("Chưa áp dụng location filter.");
   console.log("Đóng Chrome để kết thúc.");
 
   await new Promise<void>((resolve) => {
