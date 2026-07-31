@@ -6,7 +6,8 @@
   "scripts": {
     "browser:open": "tsx src/browser/open-browser.ts",
     "linkedin:search": "tsx src/browser/search-linkedin.ts",
-    "supabase:test": "tsx src/browser/database/test-supabase.ts"
+    "supabase:test": "tsx src/browser/database/test-supabase.ts",
+    "linkedin:scan": "tsx src/browser/scan-linkedin.ts"
   },
   "dependencies": {
     "playwright": "^1.54.0"
