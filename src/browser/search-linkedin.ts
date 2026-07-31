@@ -16,15 +16,11 @@ async function applyLocationFilter(
 ): Promise<void> {
   if (!location) return;
 
-  console.log("[1] Tìm nút Locations...");
+  console.log("[1] Mở Locations filter");
 
   const locationsButton = page
     .getByRole("button", { name: /locations/i })
     .first();
-
-  console.log(
-    `[1] Số nút Locations tìm thấy: ${await locationsButton.count()}`
-  );
 
   await locationsButton.waitFor({
     state: "visible",
@@ -33,71 +29,51 @@ async function applyLocationFilter(
 
   await locationsButton.click();
 
-  console.log("[2] Đã mở Locations.");
+  const locationInput = page
+    .getByPlaceholder(/add a location/i)
+    .first();
 
-  const input = page.getByPlaceholder(/add a location/i).first();
-
-  console.log(
-    `[2] Số ô Add a location tìm thấy: ${await input.count()}`
-  );
-
-  await input.waitFor({
+  await locationInput.waitFor({
     state: "visible",
     timeout: 20_000
   });
 
-  await input.fill(location);
+  console.log(`[2] Nhập location: ${location}`);
 
-  console.log(`[3] Đã nhập: ${location}`);
+  await locationInput.fill(location);
 
+  // Chờ LinkedIn tải danh sách gợi ý
   await page.waitForTimeout(2_000);
 
-  const possibleOptions = page.locator(
-    '[role="option"], [role="listbox"] li, li'
-  );
+  // Chọn suggestion đầu tiên bằng keyboard,
+  // tránh click nhầm text trong profile ứng viên
+  await locationInput.press("ArrowDown");
+  await locationInput.press("Enter");
 
-  const optionTexts = await possibleOptions.allTextContents();
-
-  console.log("[4] Các option/li đang thấy:");
-  console.log(
-    optionTexts
-      .map((text) => text.trim())
-      .filter(Boolean)
-      .slice(0, 30)
-  );
-
-  const suggestion = page
-    .getByText(location, { exact: true })
-    .filter({ visible: true })
-    .last();
-
-  console.log(
-    `[5] Số suggestion chính xác tìm thấy: ${await suggestion.count()}`
-  );
-
-  await suggestion.waitFor({
-    state: "visible",
-    timeout: 20_000
-  });
-
-  await suggestion.click();
-
-  console.log("[6] Đã chọn location.");
+  console.log("[3] Đã chọn location suggestion");
 
   const showResultsButton = page
     .getByRole("button", { name: /show results/i })
     .filter({ visible: true })
     .last();
 
-  console.log(
-    `[7] Số nút Show results: ${await showResultsButton.count()}`
-  );
+  await showResultsButton.waitFor({
+    state: "visible",
+    timeout: 20_000
+  });
 
   await showResultsButton.click();
 
-  console.log("[8] Đã click Show results.");
+  console.log("[4] Đã áp dụng location filter");
 
-  await page.waitForTimeout(3_000);
+  await page.waitForURL(
+    /linkedin\.com\/search\/results\/people/,
+    {
+      timeout: 30_000
+    }
+  );
+
+  console.log(`[5] Trang danh sách: ${page.url()}`);
 }
 async function main(): Promise<void> {
   const keyword = getArgument("keyword");
