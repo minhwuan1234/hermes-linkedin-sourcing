@@ -6,10 +6,16 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "rootDir": "src",
     "outDir": "dist",
-    "rootDir": "src"
+    "noEmit": false
   },
   "include": [
     "src/ui/server.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/browser"
   ]
 }
