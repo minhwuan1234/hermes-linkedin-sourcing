@@ -10,7 +10,8 @@
     "supabase:test": "tsx src/browser/database/test-supabase.ts",
     "ui:dev": "tsx src/ui/server.ts",
     "build": "tsc -p tsconfig.ui.json",
-    "start": "node dist/ui/server.js"
+    "start": "node dist/ui/server.js",
+    "linkedin:email-existing": "tsx src/browser/email-existing.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
