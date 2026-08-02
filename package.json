@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "browser:open": "tsx src/browser/open-browser.ts",
+    "linkedin:scan": "tsx src/browser/scan-linkedin.ts",
     "supabase:test": "tsx src/browser/database/test-supabase.ts",
-    "linkedin:scan": "tsx src/browser/scan-linkedin.ts"
     "ui:dev": "tsx src/ui/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.ui.json",
     "start": "node dist/ui/server.js"
   },
   "dependencies": {
