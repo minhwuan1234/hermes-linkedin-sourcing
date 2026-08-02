@@ -38,7 +38,7 @@ app.get("/config.js", (_request, response) => {
     `);
 });
 
-app.get("*", (_request, response) => {
+app.use((_request, response) => {
   response.sendFile(path.join(publicDir, "index.html"));
 });
 
