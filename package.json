@@ -2,7 +2,7 @@
   "name": "hermes-linkedin-sourcing",
   "version": "1.0.0",
   "private": true,
-  "description": "Code-driven LinkedIn sourcing automation",
+  "description": "LinkedIn sourcing scanner and dashboard",
   "type": "module",
   "scripts": {
     "browser:open": "tsx src/browser/open-browser.ts",
