@@ -499,32 +499,18 @@ async function extractCandidateFromProfileLink(
 async function scrollSearchResults(
   page: Page
 ): Promise<void> {
-  await page.evaluate(async () => {
-    const delay = (
-      milliseconds: number
-    ): Promise<void> =>
-      new Promise((resolve) => {
-        window.setTimeout(
-          resolve,
-          milliseconds
-        );
-      });
-
-    for (
-      let index = 0;
-      index < 8;
-      index += 1
-    ) {
+  for (let index = 0; index < 8; index += 1) {
+    await page.evaluate(() => {
       window.scrollBy(
         0,
-        Math.floor(
-          window.innerHeight * 0.75
-        )
+        Math.floor(window.innerHeight * 0.75)
       );
+    });
 
-      await delay(500);
-    }
+    await page.waitForTimeout(500);
+  }
 
+  await page.evaluate(() => {
     window.scrollTo(0, 0);
   });
 
