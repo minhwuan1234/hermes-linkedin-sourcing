@@ -2,15 +2,1045 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1"
   />
-  <title>LinkedIn Candidate Dashboard</title>
+
+  <title>LinkedIn Candidate Scanner</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"
+  ></script>
+
+  <style>
+    :root {
+      --page-bg: #f4f5f8;
+      --panel-bg: #eaedf3;
+      --card-shell: #ebedf3;
+      --text-main: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --line: #e2e8f0;
+      --primary: #6366f1;
+      --primary-soft: #e0e7ff;
+      --success: #10b981;
+      --linkedin: #0a66c2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", sans-serif;
+      color: var(--text-main);
+      background: var(--page-bg);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .timeline-container::before {
+      content: "";
+      position: absolute;
+      left: 184px;
+      top: 26px;
+      bottom: 20px;
+      width: 2px;
+      background: var(--line);
+      z-index: 0;
+    }
+
+    .candidate-card {
+      transition:
+        transform 180ms ease,
+        box-shadow 180ms ease;
+    }
+
+    .candidate-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 35px rgb(15 23 42 / 8%);
+    }
+
+    .candidate-card.is-new {
+      animation: newCandidate 2.4s ease;
+    }
+
+    @keyframes newCandidate {
+      0% {
+        box-shadow: 0 0 0 4px rgb(99 102 241 / 18%);
+      }
+
+      100% {
+        box-shadow: none;
+      }
+    }
+
+    .realtime-dot {
+      position: relative;
+    }
+
+    .realtime-dot::after {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      opacity: 0;
+      animation: realtimePulse 1.8s infinite;
+    }
+
+    @keyframes realtimePulse {
+      0% {
+        transform: scale(0.7);
+        opacity: 0.7;
+      }
+
+      100% {
+        transform: scale(1.7);
+        opacity: 0;
+      }
+    }
+
+    .skeleton {
+      overflow: hidden;
+      position: relative;
+      background: #e7e9ef;
+    }
+
+    .skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background:
+        linear-gradient(
+          90deg,
+          transparent,
+          rgb(255 255 255 / 55%),
+          transparent
+        );
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .timeline-container::before {
+        display: none;
+      }
+
+      .timeline-row {
+        display: block;
+      }
+
+      .timeline-date {
+        width: auto !important;
+        margin-bottom: 12px;
+        padding-right: 0 !important;
+        text-align: left !important;
+      }
+
+      .timeline-bullet {
+        display: none;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <h1>LinkedIn Candidate Dashboard</h1>
-  <p>Dashboard is running.</p>
+  <main class="w-full max-w-6xl mx-auto px-5 py-8 md:px-8">
+    <header class="mb-8">
+      <div
+        class="flex flex-col gap-5 md:flex-row md:items-end md:justify-between"
+      >
+        <div>
+          <div
+            class="mb-3 inline-flex items-center gap-2 rounded-full
+                   border border-slate-200 bg-white px-3 py-1.5
+                   text-xs font-semibold text-slate-500 shadow-sm"
+          >
+            <i class="fa-brands fa-linkedin text-[#0a66c2]"></i>
+            LinkedIn sourcing operation
+          </div>
+
+          <h1 class="text-3xl font-bold tracking-tight text-slate-800">
+            Candidate Scanner
+          </h1>
+
+          <p class="mt-2 text-sm font-medium text-slate-400">
+            Theo dõi ứng viên được scan và đồng bộ từ Supabase
+          </p>
+        </div>
+
+        <div
+          id="realtimeStatus"
+          class="inline-flex w-fit items-center gap-2 rounded-2xl
+                 border border-slate-200 bg-white px-4 py-2.5
+                 text-xs font-semibold text-slate-500 shadow-sm"
+        >
+          <span
+            id="statusDot"
+            class="h-2.5 w-2.5 rounded-full bg-amber-400"
+          ></span>
+
+          <span id="statusText">Đang kết nối realtime...</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="mb-8 flex justify-center">
+      <div
+        class="flex w-full max-w-3xl flex-wrap items-center justify-center
+               gap-1 rounded-2xl bg-[#eaedf3] p-1.5 shadow-sm"
+      >
+        <button
+          type="button"
+          data-filter="all"
+          class="filter-tab rounded-xl bg-white px-5 py-2
+                 text-sm font-semibold text-slate-800 shadow-sm"
+        >
+          Tất cả ứng viên
+          <span
+            id="allCount"
+            class="ml-2 rounded-full bg-[#e0e7ff] px-2 py-0.5
+                   text-xs font-bold text-[#4f46e5]"
+          >
+            0
+          </span>
+        </button>
+
+        <button
+          type="button"
+          data-filter="company"
+          class="filter-tab rounded-xl px-5 py-2
+                 text-sm font-medium text-slate-500
+                 transition hover:text-slate-800"
+        >
+          Có company hint
+        </button>
+
+        <button
+          type="button"
+          data-filter="connect"
+          class="filter-tab rounded-xl px-5 py-2
+                 text-sm font-medium text-slate-500
+                 transition hover:text-slate-800"
+        >
+          Có thể kết nối
+        </button>
+      </div>
+    </section>
+
+    <section
+      class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3"
+    >
+      <article
+        class="rounded-3xl border border-slate-200/70
+               bg-[#ebedf3] p-1 shadow-sm"
+      >
+        <div class="rounded-[20px] bg-white p-5 shadow-sm">
+          <div
+            class="mb-4 flex items-center justify-between"
+          >
+            <span
+              class="text-xs font-semibold tracking-wide text-[#6366f1]"
+            >
+              Total candidates
+            </span>
+
+            <div
+              class="flex h-9 w-9 items-center justify-center
+                     rounded-2xl bg-indigo-50 text-indigo-500"
+            >
+              <i class="fa-solid fa-users"></i>
+            </div>
+          </div>
+
+          <div
+            id="totalCandidates"
+            class="text-3xl font-bold text-slate-800"
+          >
+            0
+          </div>
+
+          <p class="mt-1 text-xs font-medium text-slate-400">
+            Profile không trùng
+          </p>
+        </div>
+      </article>
+
+      <article
+        class="rounded-3xl border border-slate-200/70
+               bg-[#ebedf3] p-1 shadow-sm"
+      >
+        <div class="rounded-[20px] bg-white p-5 shadow-sm">
+          <div
+            class="mb-4 flex items-center justify-between"
+          >
+            <span
+              class="text-xs font-semibold tracking-wide text-[#10b981]"
+            >
+              Company detected
+            </span>
+
+            <div
+              class="flex h-9 w-9 items-center justify-center
+                     rounded-2xl bg-emerald-50 text-emerald-500"
+            >
+              <i class="fa-solid fa-building"></i>
+            </div>
+          </div>
+
+          <div
+            id="companyCount"
+            class="text-3xl font-bold text-slate-800"
+          >
+            0
+          </div>
+
+          <p class="mt-1 text-xs font-medium text-slate-400">
+            Có current company hint
+          </p>
+        </div>
+      </article>
+
+      <article
+        class="rounded-3xl border border-slate-200/70
+               bg-[#ebedf3] p-1 shadow-sm"
+      >
+        <div class="rounded-[20px] bg-white p-5 shadow-sm">
+          <div
+            class="mb-4 flex items-center justify-between"
+          >
+            <span
+              class="text-xs font-semibold tracking-wide text-[#e15b49]"
+            >
+              Last update
+            </span>
+
+            <div
+              class="flex h-9 w-9 items-center justify-center
+                     rounded-2xl bg-orange-50 text-[#e15b49]"
+            >
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+          </div>
+
+          <div
+            id="lastUpdated"
+            class="text-lg font-bold text-slate-800"
+          >
+            —
+          </div>
+
+          <p class="mt-1 text-xs font-medium text-slate-400">
+            Thời gian scan gần nhất
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section
+      class="mb-8 flex flex-col gap-3 rounded-3xl
+             border border-slate-200/70 bg-white p-4 shadow-sm
+             md:flex-row md:items-center"
+    >
+      <div class="relative flex-1">
+        <i
+          class="fa-solid fa-magnifying-glass absolute left-4 top-1/2
+                 -translate-y-1/2 text-sm text-slate-300"
+        ></i>
+
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Tìm theo tên, headline, công ty hoặc location..."
+          class="w-full rounded-2xl border border-slate-200
+                 bg-[#f8f9fb] py-3 pl-11 pr-4 text-sm
+                 font-medium text-slate-700 outline-none
+                 transition focus:border-indigo-300 focus:bg-white
+                 focus:ring-4 focus:ring-indigo-50"
+        />
+      </div>
+
+      <select
+        id="actionFilter"
+        class="rounded-2xl border border-slate-200 bg-[#f8f9fb]
+               px-4 py-3 text-sm font-semibold text-slate-600
+               outline-none transition focus:border-indigo-300
+               focus:ring-4 focus:ring-indigo-50"
+      >
+        <option value="">Tất cả action</option>
+        <option value="Connect">Connect</option>
+        <option value="Message">Message</option>
+        <option value="Follow">Follow</option>
+        <option value="View">View</option>
+      </select>
+
+      <button
+        id="reloadButton"
+        type="button"
+        class="rounded-2xl bg-slate-800 px-5 py-3
+               text-sm font-semibold text-white
+               transition hover:bg-slate-700"
+      >
+        <i class="fa-solid fa-rotate mr-2"></i>
+        Tải lại
+      </button>
+    </section>
+
+    <section class="relative timeline-container">
+      <div
+        id="nowRow"
+        class="timeline-row relative z-10 mb-8 flex items-center gap-6"
+      >
+        <div
+          class="timeline-date w-40 shrink-0 pr-2 text-right"
+        >
+          <span class="text-sm font-bold text-[#e15b49]">
+            Now
+          </span>
+        </div>
+
+        <div
+          class="timeline-bullet h-2.5 w-2.5 shrink-0 rounded-full
+                 bg-slate-300 ring-4 ring-[#f4f5f8]"
+        ></div>
+
+        <div
+          id="feedStatus"
+          class="text-sm font-medium text-slate-400"
+        >
+          Đang tải dữ liệu...
+        </div>
+      </div>
+
+      <div id="timelineFeed" class="space-y-10"></div>
+
+      <div
+        id="emptyState"
+        class="hidden rounded-3xl border border-dashed
+               border-slate-300 bg-white px-8 py-16 text-center"
+      >
+        <div
+          class="mx-auto mb-4 flex h-14 w-14 items-center justify-center
+                 rounded-2xl bg-slate-100 text-slate-400"
+        >
+          <i class="fa-solid fa-user-group text-xl"></i>
+        </div>
+
+        <h2 class="text-base font-bold text-slate-700">
+          Chưa có ứng viên
+        </h2>
+
+        <p class="mt-2 text-sm font-medium text-slate-400">
+          Dữ liệu sẽ xuất hiện tại đây sau khi scanner ghi vào Supabase.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/config.js"></script>
+
+  <script type="module">
+    import {
+      createClient
+    } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const config = window.APP_CONFIG;
+
+    const supabase = createClient(
+      config.supabaseUrl,
+      config.supabaseAnonKey
+    );
+
+    const state = {
+      candidates: [],
+      activeTab: "all",
+      highlightedIds: new Set()
+    };
+
+    const timelineFeed =
+      document.querySelector("#timelineFeed");
+
+    const emptyState =
+      document.querySelector("#emptyState");
+
+    const feedStatus =
+      document.querySelector("#feedStatus");
+
+    const realtimeStatus =
+      document.querySelector("#realtimeStatus");
+
+    const statusDot =
+      document.querySelector("#statusDot");
+
+    const statusText =
+      document.querySelector("#statusText");
+
+    const searchInput =
+      document.querySelector("#searchInput");
+
+    const actionFilter =
+      document.querySelector("#actionFilter");
+
+    const reloadButton =
+      document.querySelector("#reloadButton");
+
+    const totalCandidates =
+      document.querySelector("#totalCandidates");
+
+    const companyCount =
+      document.querySelector("#companyCount");
+
+    const lastUpdated =
+      document.querySelector("#lastUpdated");
+
+    const allCount =
+      document.querySelector("#allCount");
+
+    const filterTabs =
+      document.querySelectorAll(".filter-tab");
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function initials(name) {
+      const safeName = name || "LinkedIn Member";
+
+      return safeName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("");
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "—";
+
+      return new Intl.DateTimeFormat("vi-VN", {
+        dateStyle: "short",
+        timeStyle: "medium"
+      }).format(new Date(value));
+    }
+
+    function formatTime(value) {
+      if (!value) return "—";
+
+      return new Intl.DateTimeFormat("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(value));
+    }
+
+    function dateKey(value) {
+      const date = new Date(value);
+
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    function datePresentation(value) {
+      const date = new Date(value);
+      const now = new Date();
+
+      const isToday =
+        date.toDateString() === now.toDateString();
+
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+
+      const isYesterday =
+        date.toDateString() === yesterday.toDateString();
+
+      return {
+        day: new Intl.DateTimeFormat("vi-VN", {
+          day: "2-digit"
+        }).format(date),
+
+        label: isToday
+          ? "Today"
+          : isYesterday
+            ? "Yesterday"
+            : new Intl.DateTimeFormat("vi-VN", {
+                month: "short"
+              }).format(date)
+      };
+    }
+
+    function actionStyle(action) {
+      const styles = {
+        Connect: "bg-blue-50 text-[#0a66c2]",
+        Message: "bg-indigo-50 text-indigo-600",
+        Follow: "bg-emerald-50 text-emerald-600",
+        View: "bg-slate-100 text-slate-600"
+      };
+
+      return styles[action] || "bg-slate-100 text-slate-500";
+    }
+
+    function filteredCandidates() {
+      const query =
+        searchInput.value.trim().toLowerCase();
+
+      const selectedAction =
+        actionFilter.value;
+
+      return state.candidates.filter((candidate) => {
+        if (
+          state.activeTab === "company" &&
+          !candidate.current_company_hint
+        ) {
+          return false;
+        }
+
+        if (
+          state.activeTab === "connect" &&
+          candidate.action_type !== "Connect"
+        ) {
+          return false;
+        }
+
+        if (
+          selectedAction &&
+          candidate.action_type !== selectedAction
+        ) {
+          return false;
+        }
+
+        if (!query) {
+          return true;
+        }
+
+        const searchable = [
+          candidate.full_name,
+          candidate.headline,
+          candidate.location,
+          candidate.current_company_hint,
+          candidate.action_type
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchable.includes(query);
+      });
+    }
+
+    function groupByDate(candidates) {
+      return candidates.reduce((groups, candidate) => {
+        const key = dateKey(candidate.scanned_at);
+
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+
+        groups[key].push(candidate);
+
+        return groups;
+      }, {});
+    }
+
+    function candidateCard(candidate) {
+      const isNew =
+        state.highlightedIds.has(candidate.id);
+
+      return `
+        <article
+          class="candidate-card ${isNew ? "is-new" : ""}
+                 overflow-hidden rounded-3xl border
+                 border-slate-200/60 bg-[#ebedf3] p-1 shadow-sm"
+        >
+          <div class="flex items-center justify-between px-5 py-3.5">
+            <div class="min-w-0 pr-4">
+              <h3
+                class="truncate text-sm font-bold text-slate-800"
+              >
+                ${escapeHtml(
+                  candidate.full_name || "LinkedIn Member"
+                )}
+              </h3>
+
+              <p
+                class="mt-1 truncate text-xs font-medium text-slate-400"
+              >
+                ${escapeHtml(
+                  candidate.current_company_hint ||
+                  candidate.location ||
+                  "Company chưa xác định"
+                )}
+              </p>
+            </div>
+
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center
+                     rounded-full bg-white text-xs font-bold
+                     text-indigo-500 ring-2 ring-white shadow-sm"
+            >
+              ${escapeHtml(initials(candidate.full_name))}
+            </div>
+          </div>
+
+          <div
+            class="space-y-4 rounded-2xl bg-white p-5 shadow-sm"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <span
+                class="text-xs font-semibold tracking-wide
+                       text-[#6366f1]"
+              >
+                Candidate profile
+              </span>
+
+              <span
+                class="text-xs font-medium text-slate-400"
+              >
+                ${escapeHtml(formatTime(candidate.scanned_at))}
+              </span>
+            </div>
+
+            <div class="border-b border-slate-100 pb-4">
+              <p
+                class="text-sm font-medium leading-relaxed
+                       text-slate-600"
+              >
+                ${escapeHtml(candidate.headline || "Không có headline")}
+              </p>
+            </div>
+
+            <div
+              class="grid grid-cols-1 gap-3 text-xs md:grid-cols-2"
+            >
+              <div
+                class="rounded-2xl bg-[#f8f9fb] px-4 py-3"
+              >
+                <div
+                  class="mb-1 font-semibold text-slate-400"
+                >
+                  Location
+                </div>
+
+                <div class="font-semibold text-slate-700">
+                  ${escapeHtml(candidate.location || "—")}
+                </div>
+              </div>
+
+              <div
+                class="rounded-2xl bg-[#f8f9fb] px-4 py-3"
+              >
+                <div
+                  class="mb-1 font-semibold text-slate-400"
+                >
+                  Current company hint
+                </div>
+
+                <div class="font-semibold text-slate-700">
+                  ${escapeHtml(
+                    candidate.current_company_hint || "—"
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="flex flex-col gap-3 border-t border-slate-100
+                     pt-4 sm:flex-row sm:items-center
+                     sm:justify-between"
+            >
+              <span
+                class="w-fit rounded-full px-3 py-1.5
+                       text-xs font-bold
+                       ${actionStyle(candidate.action_type)}"
+              >
+                ${escapeHtml(candidate.action_type || "No action")}
+              </span>
+
+              <a
+                href="${escapeHtml(candidate.profile_url)}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 text-xs
+                       font-bold text-[#0a66c2]
+                       transition hover:text-blue-800"
+              >
+                Open LinkedIn
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </a>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderSummary() {
+      totalCandidates.textContent =
+        String(state.candidates.length);
+
+      allCount.textContent =
+        String(state.candidates.length);
+
+      companyCount.textContent = String(
+        state.candidates.filter(
+          (candidate) => candidate.current_company_hint
+        ).length
+      );
+
+      const latest = state.candidates[0]?.scanned_at;
+
+      lastUpdated.textContent =
+        latest ? formatDateTime(latest) : "—";
+    }
+
+    function renderFeed() {
+      const candidates = filteredCandidates();
+      const groups = groupByDate(candidates);
+
+      const groupEntries =
+        Object.entries(groups).sort(
+          ([left], [right]) =>
+            new Date(right).getTime() -
+            new Date(left).getTime()
+        );
+
+      timelineFeed.innerHTML = groupEntries
+        .map(([key, groupCandidates]) => {
+          const presentation =
+            datePresentation(groupCandidates[0].scanned_at);
+
+          return `
+            <section
+              class="timeline-row relative z-10 flex
+                     items-start gap-6"
+            >
+              <div
+                class="timeline-date w-40 shrink-0 pr-2
+                       pt-2 text-right"
+              >
+                <div
+                  class="text-2xl font-bold leading-none
+                         text-slate-800"
+                >
+                  ${escapeHtml(presentation.day)}
+                </div>
+
+                <div
+                  class="mt-1 text-xs font-semibold
+                         text-[#e15b49]"
+                >
+                  ${escapeHtml(presentation.label)}
+                </div>
+              </div>
+
+              <div
+                class="timeline-bullet mt-3 h-2.5 w-2.5
+                       shrink-0 rounded-full bg-slate-300
+                       ring-4 ring-[#f4f5f8]"
+              ></div>
+
+              <div
+                class="grid min-w-0 flex-1 grid-cols-1
+                       gap-6 xl:grid-cols-2"
+              >
+                ${groupCandidates.map(candidateCard).join("")}
+              </div>
+            </section>
+          `;
+        })
+        .join("");
+
+      emptyState.classList.toggle(
+        "hidden",
+        candidates.length > 0
+      );
+
+      feedStatus.textContent =
+        candidates.length > 0
+          ? `${candidates.length} ứng viên đang hiển thị`
+          : "Chưa có dữ liệu phù hợp";
+    }
+
+    function render() {
+      renderSummary();
+      renderFeed();
+    }
+
+    function sortCandidates() {
+      state.candidates.sort(
+        (left, right) =>
+          new Date(right.scanned_at).getTime() -
+          new Date(left.scanned_at).getTime()
+      );
+    }
+
+    function mergeCandidate(
+      candidate,
+      highlight = false
+    ) {
+      const index =
+        state.candidates.findIndex(
+          (item) => item.id === candidate.id
+        );
+
+      if (index >= 0) {
+        state.candidates[index] = candidate;
+      } else {
+        state.candidates.push(candidate);
+      }
+
+      if (highlight) {
+        state.highlightedIds.add(candidate.id);
+
+        window.setTimeout(() => {
+          state.highlightedIds.delete(candidate.id);
+          render();
+        }, 2500);
+      }
+
+      sortCandidates();
+      render();
+    }
+
+    async function loadCandidates() {
+      feedStatus.textContent = "Đang tải dữ liệu...";
+
+      const { data, error } = await supabase
+        .from("linkedin_candidates")
+        .select(
+          [
+            "id",
+            "full_name",
+            "profile_url",
+            "headline",
+            "location",
+            "current_company_hint",
+            "action_type",
+            "scanned_at"
+          ].join(",")
+        )
+        .order("scanned_at", {
+          ascending: false
+        });
+
+      if (error) {
+        console.error(error);
+        feedStatus.textContent = "Không tải được dữ liệu";
+        return;
+      }
+
+      state.candidates = data ?? [];
+      sortCandidates();
+      render();
+    }
+
+    function subscribeRealtime() {
+      supabase
+        .channel("linkedin-candidates-dashboard")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "linkedin_candidates"
+          },
+          (payload) => {
+            if (
+              payload.eventType === "INSERT" ||
+              payload.eventType === "UPDATE"
+            ) {
+              mergeCandidate(payload.new, true);
+            }
+
+            if (payload.eventType === "DELETE") {
+              state.candidates =
+                state.candidates.filter(
+                  (candidate) =>
+                    candidate.id !== payload.old.id
+                );
+
+              render();
+            }
+          }
+        )
+        .subscribe((connectionStatus) => {
+          if (connectionStatus === "SUBSCRIBED") {
+            statusDot.className =
+              "realtime-dot h-2.5 w-2.5 rounded-full bg-emerald-500 text-emerald-500";
+
+            statusText.textContent =
+              "Realtime connected";
+
+            realtimeStatus.classList.add(
+              "text-emerald-600"
+            );
+          } else {
+            statusDot.className =
+              "h-2.5 w-2.5 rounded-full bg-amber-400";
+
+            statusText.textContent =
+              connectionStatus;
+
+            realtimeStatus.classList.remove(
+              "text-emerald-600"
+            );
+          }
+        });
+    }
+
+    filterTabs.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.activeTab =
+          button.dataset.filter || "all";
+
+        filterTabs.forEach((tab) => {
+          tab.className =
+            "filter-tab rounded-xl px-5 py-2 text-sm " +
+            "font-medium text-slate-500 transition " +
+            "hover:text-slate-800";
+        });
+
+        button.className =
+          "filter-tab rounded-xl bg-white px-5 py-2 " +
+          "text-sm font-semibold text-slate-800 shadow-sm";
+
+        render();
+      });
+    });
+
+    searchInput.addEventListener("input", render);
+    actionFilter.addEventListener("change", render);
+    reloadButton.addEventListener("click", loadCandidates);
+
+    await loadCandidates();
+    subscribeRealtime();
+  </script>
 </body>
 </html>
