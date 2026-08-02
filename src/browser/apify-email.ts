@@ -26,10 +26,9 @@ function normalizeEmail(value: unknown): string | null {
     return null;
   }
 
-  const valid =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  return valid ? email : null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ? email
+    : null;
 }
 
 function uniqueEmails(values: unknown[]): string[] {
@@ -37,10 +36,7 @@ function uniqueEmails(values: unknown[]): string[] {
     ...new Set(
       values
         .map(normalizeEmail)
-        .filter(
-          (email): email is string =>
-            Boolean(email)
-        )
+        .filter((email): email is string => Boolean(email))
     )
   ];
 }
@@ -58,10 +54,11 @@ function parseResult(
         : []
     );
 
-  const emails = uniqueEmails([
-    workEmail,
-    ...personalEmails
-  ]);
+  const emails =
+    uniqueEmails([
+      workEmail,
+      ...personalEmails
+    ]);
 
   return {
     emails,
@@ -96,20 +93,26 @@ export async function findEmailsWithApify(
     `run-sync-get-dataset-items` +
     `?format=json&clean=true&timeout=300`;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
+  const response = await fetch(
+    endpoint,
+    {
+      method: "POST",
 
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
 
-    body: JSON.stringify({
-      linkedin_url: profileUrl
-    }),
+      body: JSON.stringify({
+        linkedin_url: profileUrl
+      }),
 
-    signal: AbortSignal.timeout(310_000)
-  });
+      signal:
+        AbortSignal.timeout(
+          310_000
+        )
+    }
+  );
 
   const responseText =
     await response.text();
@@ -124,7 +127,8 @@ export async function findEmailsWithApify(
   let output: unknown;
 
   try {
-    output = JSON.parse(responseText);
+    output =
+      JSON.parse(responseText);
   } catch {
     throw new Error(
       "Apify output không phải JSON."
@@ -137,7 +141,9 @@ export async function findEmailsWithApify(
       : [];
 
   const result =
-    items[0] as ApifyEmailResult | undefined;
+    items[0] as
+      | ApifyEmailResult
+      | undefined;
 
   if (!result) {
     return {
