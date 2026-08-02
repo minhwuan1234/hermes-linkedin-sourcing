@@ -2,6 +2,7 @@
   "name": "hermes-linkedin-sourcing",
   "version": "1.0.0",
   "private": true,
+  "description": "Code-driven LinkedIn sourcing automation",
   "type": "module",
   "scripts": {
     "browser:open": "tsx src/browser/open-browser.ts",
@@ -11,17 +12,19 @@
     "build": "tsc -p tsconfig.ui.json",
     "start": "node dist/ui/server.js"
   },
-  {
- "dependencies": {
-    "@supabase/supabase-js": "^2.0.0",
-    "dotenv": "^17.0.0",
-    "express": "^5.0.0",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
     "playwright": "^1.54.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^24.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
