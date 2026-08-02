@@ -1,23 +1,41 @@
+import "dotenv/config";
+
+import path from "node:path";
+
 import {
   chromium,
   type BrowserContext,
   type Locator,
   type Page
 } from "playwright";
-import path from "node:path";
-import { supabase } from "./database/supabase.js";
 
-const profilePath = path.resolve("data", "chrome-profile");
+import {
+  supabase
+} from "./database/supabase.js";
+
+import {
+  findEmailsWithApify
+} from "./apify-email.js";
+
+const profilePath =
+  path.resolve(
+    "data",
+    "chrome-profile"
+  );
 
 type Experience = {
   position_order: number;
+
   job_title: string | null;
   company_name: string | null;
   company_url: string | null;
+
   employment_type: string | null;
   location: string | null;
+
   date_range_text: string | null;
   duration_text: string | null;
+
   description: string | null;
   raw_text: string;
 };
@@ -25,68 +43,100 @@ type Experience = {
 type Candidate = {
   full_name: string | null;
   profile_url: string;
+
   headline: string | null;
   location: string | null;
+
   current_company_hint: string | null;
   action_type: string | null;
-  scanned_at: string;
 
-  experiences?: Experience[];
-  experience_count?: number;
-  experience_scan_status?: "pending" | "scanning" | "completed" | "failed";
-  experience_scanned_at?: string | null;
-  experience_scan_error?: string | null;
+  scanned_at: string;
 };
 
-function getArgument(name: string): string {
-  const prefix = `--${name}=`;
+type ExperienceStatus =
+  | "pending"
+  | "scanning"
+  | "completed"
+  | "failed";
 
-  const argument = process.argv.find((item) =>
-    item.startsWith(prefix)
+type EmailStatus =
+  | "pending"
+  | "scanning"
+  | "completed"
+  | "not_found"
+  | "failed";
+
+function getArgument(
+  name: string
+): string {
+  const prefix =
+    `--${name}=`;
+
+  const argument =
+    process.argv.find(
+      (item) =>
+        item.startsWith(prefix)
+    );
+
+  return (
+    argument
+      ?.slice(prefix.length)
+      .trim() ??
+    ""
   );
-
-  return argument?.slice(prefix.length).trim() ?? "";
 }
 
 function normalizeText(
-  value: string | null | undefined
+  value:
+    | string
+    | null
+    | undefined
 ): string | null {
-  const normalized = value
-    ?.replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const normalized =
+    value
+      ?.replace(
+        /\u00a0/g,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
 
   return normalized || null;
 }
 
-function normalizeProfileUrl(value: string): string {
-  const url = new URL(
-    value,
-    "https://www.linkedin.com"
-  );
+function normalizeLinkedInUrl(
+  value: string
+): string {
+  const url =
+    new URL(
+      value,
+      "https://www.linkedin.com"
+    );
 
   url.search = "";
   url.hash = "";
 
-  return url.toString().replace(/\/$/, "");
+  return url
+    .toString()
+    .replace(/\/$/, "");
 }
 
-function normalizeLinkedInUrl(
-  value: string | null
-): string | null {
-  if (!value) {
-    return null;
-  }
-
-  return normalizeProfileUrl(value);
-}
-
-function uniqueLines(values: string[]): string[] {
+function uniqueLines(
+  values: string[]
+): string[] {
   return [
     ...new Set(
       values
-        .map((value) => normalizeText(value))
-        .filter((value): value is string => Boolean(value))
+        .map(normalizeText)
+        .filter(
+          (
+            value
+          ): value is string =>
+            Boolean(value)
+        )
     )
   ];
 }
@@ -103,9 +153,15 @@ function extractCompanyHint(
     /\s+@\s*([^|•]+)/i
   ];
 
-  for (const pattern of patterns) {
-    const match = headline.match(pattern);
-    const company = normalizeText(match?.[1]);
+  for (
+    const pattern of patterns
+  ) {
+    const company =
+      normalizeText(
+        headline.match(
+          pattern
+        )?.[1]
+      );
 
     if (company) {
       return company;
@@ -115,29 +171,45 @@ function extractCompanyHint(
   return null;
 }
 
-function looksLikeDateRange(value: string): boolean {
+function looksLikeDateRange(
+  value: string
+): boolean {
   return (
-    /\b(19|20)\d{2}\b/.test(value) ||
-    /\bPresent\b/i.test(value) ||
-    /\bHiện tại\b/i.test(value)
+    /\b(19|20)\d{2}\b/.test(
+      value
+    ) ||
+    /\bPresent\b/i.test(
+      value
+    ) ||
+    /\bHiện tại\b/i.test(
+      value
+    )
   );
 }
 
-function looksLikeDuration(value: string): boolean {
+function looksLikeDuration(
+  value: string
+): boolean {
   return (
     /\b\d+\s+(yr|yrs|year|years|mo|mos|month|months)\b/i.test(
       value
     ) ||
-    /\b\d+\s+(năm|tháng)\b/i.test(value)
+    /\b\d+\s+(năm|tháng)\b/i.test(
+      value
+    )
   );
 }
 
-function looksLikeLocation(value: string): boolean {
+function looksLikeLocation(
+  value: string
+): boolean {
   return (
     /Hanoi|Vietnam|Region|Ho Chi Minh|Da Nang/i.test(
       value
     ) ||
-    /Remote|Hybrid|On-site/i.test(value)
+    /Remote|Hybrid|On-site/i.test(
+      value
+    )
   );
 }
 
@@ -154,25 +226,45 @@ function parseCompanyLine(
     };
   }
 
-  const parts = companyLine
-    .split("·")
-    .map((part) => normalizeText(part))
-    .filter((part): part is string => Boolean(part));
+  const parts =
+    companyLine
+      .split("·")
+      .map(normalizeText)
+      .filter(
+        (
+          part
+        ): part is string =>
+          Boolean(part)
+      );
 
   return {
-    companyName: parts[0] ?? null,
-    employmentType: parts[1] ?? null
+    companyName:
+      parts[0] ?? null,
+
+    employmentType:
+      parts[1] ?? null
   };
 }
 
 async function getSinglePage(
   context: BrowserContext
 ): Promise<Page> {
-  const pages = context.pages();
-  const page = pages[0] ?? await context.newPage();
+  const pages =
+    context.pages();
 
-  for (const extraPage of pages.slice(1)) {
-    await extraPage.close().catch(() => undefined);
+  const page =
+    pages[0] ??
+    await context.newPage();
+
+  for (
+    const extraPage
+    of pages.slice(1)
+  ) {
+    await extraPage
+      .close()
+      .catch(
+        () => undefined
+      );
   }
 
   return page;
@@ -182,32 +274,43 @@ async function openSearchPage(
   page: Page,
   keyword: string
 ): Promise<void> {
-  const searchUrl = new URL(
-    "https://www.linkedin.com/search/results/people/"
+  const url =
+    new URL(
+      "https://www.linkedin.com/search/results/people/"
+    );
+
+  url.searchParams.set(
+    "keywords",
+    keyword
   );
 
-  searchUrl.searchParams.set("keywords", keyword);
-  searchUrl.searchParams.set(
+  url.searchParams.set(
     "origin",
     "GLOBAL_SEARCH_HEADER"
   );
 
-  console.log("[Search] Đang mở danh sách ứng viên...");
+  console.log(
+    `[Search] Keyword: ${keyword}`
+  );
 
-  await page.goto(searchUrl.toString(), {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000
-  });
+  await page.goto(
+    url.toString(),
+    {
+      waitUntil:
+        "domcontentloaded",
+
+      timeout:
+        60_000
+    }
+  );
 
   await page.waitForURL(
     /linkedin\.com\/search\/results\/people/,
     {
-      timeout: 30_000
+      timeout:
+        30_000
     }
   );
-
-  console.log(`[Search] Keyword: ${keyword}`);
-  console.log(`[Search] URL: ${page.url()}`);
 }
 
 async function applyLocationFilter(
@@ -215,104 +318,121 @@ async function applyLocationFilter(
   location: string
 ): Promise<void> {
   if (!location) {
-    console.log(
-      "[Location] Không sử dụng location filter."
-    );
-
     return;
   }
 
-  console.log("[Location] Đang mở Locations...");
+  console.log(
+    `[Location] ${location}`
+  );
 
-  const locationsButton = page
-    .getByRole("button", {
-      name: /locations/i
-    })
-    .first();
+  const locationsButton =
+    page
+      .getByRole(
+        "button",
+        {
+          name:
+            /locations/i
+        }
+      )
+      .first();
 
-  await locationsButton.waitFor({
-    state: "visible",
-    timeout: 20_000
-  });
+  await locationsButton.waitFor(
+    {
+      state:
+        "visible",
+
+      timeout:
+        20_000
+    }
+  );
 
   await locationsButton.click();
 
-  const locationInput = page
-    .getByPlaceholder(/add a location/i)
-    .first();
+  const locationInput =
+    page
+      .getByPlaceholder(
+        /add a location/i
+      )
+      .first();
 
-  await locationInput.waitFor({
-    state: "visible",
-    timeout: 20_000
-  });
+  await locationInput.waitFor(
+    {
+      state:
+        "visible",
 
-  await locationInput.fill(location);
+      timeout:
+        20_000
+    }
+  );
 
-  console.log(`[Location] Đã nhập: ${location}`);
+  await locationInput.fill(
+    location
+  );
 
-  await page.waitForTimeout(2_000);
+  await page.waitForTimeout(
+    2_000
+  );
 
-  await locationInput.press("ArrowDown");
-  await page.waitForTimeout(300);
-  await locationInput.press("Enter");
+  await locationInput.press(
+    "ArrowDown"
+  );
 
-  console.log("[Location] Đã chọn suggestion.");
+  await locationInput.press(
+    "Enter"
+  );
 
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(
+    800
+  );
 
-  const showResults = page
-    .getByText(/^Show results$/i, {
-      exact: true
-    })
-    .last();
+  const showResults =
+    page
+      .getByText(
+        /^Show results$/i,
+        {
+          exact: true
+        }
+      )
+      .last();
 
-  await showResults.waitFor({
-    state: "visible",
-    timeout: 20_000
-  });
+  await showResults.click(
+    {
+      force: true,
+      timeout: 20_000
+    }
+  );
 
-  await showResults.click({
-    force: true,
-    timeout: 20_000
-  });
-
-  console.log("[Location] Đã bấm Show results.");
-
-  await page.waitForTimeout(3_000);
-
-  if (
-    !page
-      .url()
-      .includes("/search/results/people")
-  ) {
-    throw new Error(
-      `Location filter chuyển sai trang: ${page.url()}`
-    );
-  }
-
-  console.log(
-    `[Location] URL sau filter: ${page.url()}`
+  await page.waitForTimeout(
+    3_000
   );
 }
 
 async function getCardAction(
   card: Locator
 ): Promise<string | null> {
-  const supportedActions = [
+  const texts =
+    await card
+      .locator(
+        "button, a"
+      )
+      .allTextContents();
+
+  const actions = [
     "Connect",
     "Message",
     "Follow",
     "View"
   ];
 
-  const texts = await card
-    .locator("button, a")
-    .allTextContents();
-
-  for (const action of supportedActions) {
-    const found = texts.some(
-      (text) => normalizeText(text) === action
-    );
+  for (
+    const action of actions
+  ) {
+    const found =
+      texts.some(
+        (text) =>
+          normalizeText(text) ===
+          action
+      );
 
     if (found) {
       return action;
@@ -325,62 +445,77 @@ async function getCardAction(
 async function getFullName(
   profileLink: Locator
 ): Promise<string | null> {
-  const spanText = normalizeText(
-    await profileLink
-      .locator("span[aria-hidden='true']")
-      .first()
-      .textContent()
-      .catch(() => null)
-  );
-
-  const ariaLabel = normalizeText(
-    await profileLink
-      .getAttribute("aria-label")
-      .catch(() => null)
-  );
-
-  const linkText = normalizeText(
-    await profileLink
-      .textContent()
-      .catch(() => null)
-  );
-
   const rawName =
-    spanText ??
-    ariaLabel ??
-    linkText;
+    normalizeText(
+      await profileLink
+        .locator(
+          "span[aria-hidden='true']"
+        )
+        .first()
+        .textContent()
+        .catch(
+          () => null
+        )
+    ) ??
+    normalizeText(
+      await profileLink
+        .getAttribute(
+          "aria-label"
+        )
+        .catch(
+          () => null
+        )
+    ) ??
+    normalizeText(
+      await profileLink
+        .textContent()
+        .catch(
+          () => null
+        )
+    );
 
   if (!rawName) {
     return null;
   }
 
-  const cleanedName = rawName
-    .replace(/^View\s+/i, "")
-    .replace(/['’]s profile$/i, "")
-    .replace(
-      /\s*[·•]\s*(1st|2nd|3rd\+?).*$/i,
-      ""
-    )
-    .trim();
+  const cleanName =
+    rawName
+      .replace(
+        /^View\s+/i,
+        ""
+      )
+      .replace(
+        /['’]s profile$/i,
+        ""
+      )
+      .replace(
+        /\s*[·•]\s*(1st|2nd|3rd\+?).*$/i,
+        ""
+      )
+      .trim();
 
-  return cleanedName || null;
+  return cleanName || null;
 }
 
 async function getResultContainer(
   profileLink: Locator
 ): Promise<Locator> {
-  const knownContainer = profileLink.locator(
-    [
-      "xpath=ancestor::*[",
-      "self::li",
-      " or @data-chameleon-result-urn",
-      " or contains(@class, 'reusable-search__result-container')",
-      " or contains(@class, 'entity-result')",
-      "][1]"
-    ].join("")
-  );
+  const knownContainer =
+    profileLink.locator(
+      [
+        "xpath=ancestor::*[",
+        "self::li",
+        " or @data-chameleon-result-urn",
+        " or contains(@class, 'reusable-search__result-container')",
+        " or contains(@class, 'entity-result')",
+        "][1]"
+      ].join("")
+    );
 
-  if ((await knownContainer.count()) > 0) {
+  if (
+    await knownContainer.count() >
+    0
+  ) {
     return knownContainer.first();
   }
 
@@ -388,10 +523,6 @@ async function getResultContainer(
     [
       "xpath=ancestor::div[",
       ".//a[contains(@href, '/in/')]",
-      " and (",
-      ".//button",
-      " or .//span",
-      ")",
       "][1]"
     ].join("")
   );
@@ -400,13 +531,19 @@ async function getResultContainer(
 async function extractCandidateFromProfileLink(
   profileLink: Locator
 ): Promise<Candidate | null> {
-  const href = await profileLink.getAttribute("href");
+  const href =
+    await profileLink.getAttribute(
+      "href"
+    );
 
   if (!href) {
     return null;
   }
 
-  const profileUrl = normalizeProfileUrl(href);
+  const profileUrl =
+    normalizeLinkedInUrl(
+      href
+    );
 
   if (
     !profileUrl.includes(
@@ -416,138 +553,163 @@ async function extractCandidateFromProfileLink(
     return null;
   }
 
-  const card = await getResultContainer(profileLink);
-
-  if ((await card.count()) === 0) {
-    console.log(
-      `[Skip] Không tìm thấy card cho ${profileUrl}`
+  const card =
+    await getResultContainer(
+      profileLink
     );
 
+  if (
+    await card.count() ===
+    0
+  ) {
     return null;
   }
 
   const fullName =
-    await getFullName(profileLink);
+    await getFullName(
+      profileLink
+    );
 
-  const rawLines = await card
-    .locator(
-      "span[aria-hidden='true'], p, div"
-    )
-    .allTextContents();
+  const rawLines =
+    await card
+      .locator(
+        "span[aria-hidden='true'], p, div"
+      )
+      .allTextContents();
 
-  const cleanLines = uniqueLines(rawLines).filter(
-    (line) => {
-      if (fullName && line === fullName) {
-        return false;
+  const cleanLines =
+    uniqueLines(
+      rawLines
+    ).filter(
+      (line) => {
+        if (
+          fullName &&
+          (
+            line ===
+              fullName ||
+            line.startsWith(
+              `${fullName} ·`
+            )
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          /^(1st|2nd|3rd\+?)$/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          /^(Connect|Message|Follow|View)$/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          /^(Past|Current|Education):/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          /mutual connection/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          /^\d+\s+connections?$/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
+
+        return true;
       }
-
-      if (
-        fullName &&
-        line.startsWith(`${fullName} ·`)
-      ) {
-        return false;
-      }
-
-      if (
-        /^(1st|2nd|3rd\+?)$/i.test(line)
-      ) {
-        return false;
-      }
-
-      if (
-        /^(Connect|Message|Follow|View)$/i.test(
-          line
-        )
-      ) {
-        return false;
-      }
-
-      if (
-        /^(Past|Current|Education):/i.test(
-          line
-        )
-      ) {
-        return false;
-      }
-
-      if (
-        /mutual connection/i.test(line)
-      ) {
-        return false;
-      }
-
-      if (
-        /^\d+\s+connections?$/i.test(line)
-      ) {
-        return false;
-      }
-
-      return true;
-    }
-  );
+    );
 
   const location =
-    cleanLines.find(looksLikeLocation) ?? null;
+    cleanLines.find(
+      looksLikeLocation
+    ) ?? null;
 
   const headline =
-    cleanLines.find((line) => {
-      if (line === location) {
-        return false;
-      }
+    cleanLines.find(
+      (line) => {
+        if (
+          line ===
+          location
+        ) {
+          return false;
+        }
 
-      if (/^Skills:/i.test(line)) {
-        return false;
-      }
+        if (
+          /^(Skills|Summary|Past|Current|Education):/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
 
-      if (/^Summary:/i.test(line)) {
-        return false;
-      }
+        if (
+          /connections?$/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
 
-      if (/^Past:/i.test(line)) {
-        return false;
+        return (
+          line.length >=
+          3
+        );
       }
-
-      if (/^Current:/i.test(line)) {
-        return false;
-      }
-
-      if (/^Education:/i.test(line)) {
-        return false;
-      }
-
-      if (/connections?$/i.test(line)) {
-        return false;
-      }
-
-      if (line.length < 3) {
-        return false;
-      }
-
-      return true;
-    }) ?? null;
+    ) ?? null;
 
   const normalizedHeadline =
-    normalizeText(headline);
+    normalizeText(
+      headline
+    );
 
   return {
-    full_name: fullName,
-    profile_url: profileUrl,
-    headline: normalizedHeadline,
-    location: normalizeText(location),
+    full_name:
+      fullName,
+
+    profile_url:
+      profileUrl,
+
+    headline:
+      normalizedHeadline,
+
+    location:
+      normalizeText(
+        location
+      ),
+
     current_company_hint:
       extractCompanyHint(
         normalizedHeadline
       ),
-    action_type:
-      await getCardAction(card),
-    scanned_at:
-      new Date().toISOString(),
 
-    experiences: [],
-    experience_count: 0,
-    experience_scan_status: "pending",
-    experience_scanned_at: null,
-    experience_scan_error: null
+    action_type:
+      await getCardAction(
+        card
+      ),
+
+    scanned_at:
+      new Date()
+        .toISOString()
   };
 }
 
@@ -559,76 +721,105 @@ async function scrollSearchResults(
     index < 8;
     index += 1
   ) {
-    await page.evaluate(() => {
-      window.scrollBy(
-        0,
-        Math.floor(
-          window.innerHeight * 0.75
-        )
-      );
-    });
+    await page.evaluate(
+      () => {
+        window.scrollBy(
+          0,
+          Math.floor(
+            window.innerHeight *
+            0.75
+          )
+        );
+      }
+    );
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(
+      500
+    );
   }
 
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-  });
+  await page.evaluate(
+    () =>
+      window.scrollTo(
+        0,
+        0
+      )
+  );
 
-  await page.waitForTimeout(2_000);
+  await page.waitForTimeout(
+    1_500
+  );
 }
 
 async function scanCurrentPage(
   page: Page,
   pageNumber: number
 ): Promise<Candidate[]> {
-  await page.waitForTimeout(3_000);
-  await scrollSearchResults(page);
-
-  const allProfileLinks = page.locator(
-    [
-      'main a[href*="/in/"]',
-      'div[role="main"] a[href*="/in/"]',
-      'a[href^="https://www.linkedin.com/in/"]'
-    ].join(", ")
+  await page.waitForTimeout(
+    3_000
   );
 
-  const totalLinks =
-    await allProfileLinks.count();
+  await scrollSearchResults(
+    page
+  );
+
+  const links =
+    page.locator(
+      [
+        'main a[href*="/in/"]',
+        'div[role="main"] a[href*="/in/"]',
+        'a[href^="https://www.linkedin.com/in/"]'
+      ].join(", ")
+    );
+
+  const candidates:
+    Candidate[] = [];
+
+  const seen =
+    new Set<string>();
+
+  const count =
+    await links.count();
 
   console.log(
-    `[Page ${pageNumber}] Tìm thấy ${totalLinks} link /in/.`
+    `[Page ${pageNumber}] ` +
+    `${count} link tiềm năng`
   );
-
-  const candidates: Candidate[] = [];
-  const seenProfileUrls =
-    new Set<string>();
 
   for (
     let index = 0;
-    index < totalLinks;
+    index < count;
     index += 1
   ) {
     const link =
-      allProfileLinks.nth(index);
+      links.nth(
+        index
+      );
 
-    const visible = await link
-      .isVisible()
-      .catch(() => false);
+    const visible =
+      await link
+        .isVisible()
+        .catch(
+          () => false
+        );
 
     if (!visible) {
       continue;
     }
 
     const href =
-      await link.getAttribute("href");
+      await link.getAttribute(
+        "href"
+      );
 
     if (!href) {
       continue;
     }
 
     const profileUrl =
-      normalizeProfileUrl(href);
+      normalizeLinkedInUrl(
+        href
+      );
 
     if (
       !profileUrl.includes(
@@ -639,14 +830,16 @@ async function scanCurrentPage(
     }
 
     if (
-      seenProfileUrls.has(
+      seen.has(
         profileUrl
       )
     ) {
       continue;
     }
 
-    seenProfileUrls.add(profileUrl);
+    seen.add(
+      profileUrl
+    );
 
     const candidate =
       await extractCandidateFromProfileLink(
@@ -657,22 +850,20 @@ async function scanCurrentPage(
       continue;
     }
 
-    candidates.push(candidate);
+    candidates.push(
+      candidate
+    );
 
     console.log(
-      [
-        `[Page ${pageNumber}]`,
-        `${candidates.length}.`,
-        candidate.full_name ??
-          "Không có tên",
-        "|",
-        candidate.profile_url
-      ].join(" ")
+      `[Page ${pageNumber}] ` +
+      `${candidates.length}. ` +
+      `${candidate.full_name ?? "Không có tên"}`
     );
   }
 
   console.log(
-    `[Page ${pageNumber}] Đã extract ${candidates.length} ứng viên.`
+    `[Page ${pageNumber}] ` +
+    `${candidates.length} candidate`
   );
 
   return candidates;
@@ -681,32 +872,40 @@ async function scanCurrentPage(
 async function saveBasicCandidates(
   candidates: Candidate[]
 ): Promise<void> {
-  if (candidates.length === 0) {
-    console.log(
-      "[Supabase] Không có ứng viên cơ bản để lưu."
-    );
-
+  if (
+    candidates.length ===
+    0
+  ) {
     return;
   }
 
-  const payload = candidates.map(
-    (candidate) => ({
-      full_name: candidate.full_name,
-      profile_url: candidate.profile_url,
-      headline: candidate.headline,
-      location: candidate.location,
-      current_company_hint:
-        candidate.current_company_hint,
-      action_type: candidate.action_type,
-      scanned_at: candidate.scanned_at
-    })
-  );
+  const payload =
+    candidates.map(
+      (candidate) => ({
+        ...candidate,
 
-  const { error } = await supabase
-    .from("linkedin_candidates")
-    .upsert(payload, {
-      onConflict: "profile_url"
-    });
+        experience_scan_status:
+          "pending" as ExperienceStatus,
+
+        email_scan_status:
+          "pending" as EmailStatus
+      })
+    );
+
+  const {
+    error
+  } =
+    await supabase
+      .from(
+        "linkedin_candidates"
+      )
+      .upsert(
+        payload,
+        {
+          onConflict:
+            "profile_url"
+        }
+      );
 
   if (error) {
     throw new Error(
@@ -715,32 +914,35 @@ async function saveBasicCandidates(
   }
 
   console.log(
-    `[Supabase] Đã lưu ${candidates.length} candidate cơ bản.`
+    `[Supabase] Đã lưu ${candidates.length} candidate`
   );
 }
 
-async function updateExperienceStatus(
+async function updateCandidate(
   profileUrl: string,
-  values: {
-    experiences?: Experience[];
-    experience_count?: number;
-    experience_scan_status?:
-      | "pending"
-      | "scanning"
-      | "completed"
-      | "failed";
-    experience_scanned_at?: string | null;
-    experience_scan_error?: string | null;
-  }
+  values: Record<
+    string,
+    unknown
+  >
 ): Promise<void> {
-  const { error } = await supabase
-    .from("linkedin_candidates")
-    .update(values)
-    .eq("profile_url", profileUrl);
+  const {
+    error
+  } =
+    await supabase
+      .from(
+        "linkedin_candidates"
+      )
+      .update(
+        values
+      )
+      .eq(
+        "profile_url",
+        profileUrl
+      );
 
   if (error) {
     throw new Error(
-      `Không update được experience status: ${error.message}`
+      `Không update được candidate: ${error.message}`
     );
   }
 }
@@ -750,21 +952,36 @@ async function openExperiencePage(
   profileUrl: string
 ): Promise<void> {
   const cleanProfileUrl =
-    profileUrl.replace(/\/$/, "");
+    profileUrl.replace(
+      /\/$/,
+      ""
+    );
 
   const experienceUrl =
     `${cleanProfileUrl}/details/experience/`;
 
-  await page.goto(experienceUrl, {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000
-  });
+  await page.goto(
+    experienceUrl,
+    {
+      waitUntil:
+        "domcontentloaded",
 
-  await page.waitForTimeout(3_000);
+      timeout:
+        60_000
+    }
+  );
+
+  await page.waitForTimeout(
+    3_000
+  );
 
   if (
-    page.url().includes("/login") ||
-    page.url().includes("/checkpoint")
+    page.url().includes(
+      "/login"
+    ) ||
+    page.url().includes(
+      "/checkpoint"
+    )
   ) {
     throw new Error(
       `LinkedIn yêu cầu login/checkpoint: ${page.url()}`
@@ -780,23 +997,34 @@ async function scrollExperiencePage(
     index < 6;
     index += 1
   ) {
-    await page.evaluate(() => {
-      window.scrollBy(
-        0,
-        Math.floor(
-          window.innerHeight * 0.8
-        )
-      );
-    });
+    await page.evaluate(
+      () => {
+        window.scrollBy(
+          0,
+          Math.floor(
+            window.innerHeight *
+            0.8
+          )
+        );
+      }
+    );
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(
+      500
+    );
   }
 
-  await page.evaluate(() => {
-    window.scrollTo(0, 0);
-  });
+  await page.evaluate(
+    () =>
+      window.scrollTo(
+        0,
+        0
+      )
+  );
 
-  await page.waitForTimeout(1_500);
+  await page.waitForTimeout(
+    1_500
+  );
 }
 
 async function getExperienceItems(
@@ -808,9 +1036,17 @@ async function getExperienceItems(
     "main section li"
   ];
 
-  for (const selector of selectors) {
-    const locator = page.locator(selector);
-    const count = await locator.count();
+  for (
+    const selector
+    of selectors
+  ) {
+    const locator =
+      page.locator(
+        selector
+      );
+
+    const count =
+      await locator.count();
 
     if (count > 0) {
       return locator;
@@ -822,213 +1058,320 @@ async function getExperienceItems(
   );
 }
 
-async function findCompanyLink(
-  item: Locator
-): Promise<{
-  companyName: string | null;
-  companyUrl: string | null;
-}> {
-  const companyLink = item
-    .locator('a[href*="/company/"]')
-    .first();
-
-  if ((await companyLink.count()) > 0) {
-    return {
-      companyName: normalizeText(
-        await companyLink
-          .textContent()
-          .catch(() => null)
-      ),
-      companyUrl: normalizeLinkedInUrl(
-        await companyLink
-          .getAttribute("href")
-          .catch(() => null)
-      )
-    };
-  }
-
-  return {
-    companyName: null,
-    companyUrl: null
-  };
-}
-
 async function extractExperienceItem(
   item: Locator,
   positionOrder: number
 ): Promise<Experience | null> {
-  const visible = await item
-    .isVisible()
-    .catch(() => false);
+  const visible =
+    await item
+      .isVisible()
+      .catch(
+        () => false
+      );
 
   if (!visible) {
     return null;
   }
 
-  const rawValues = await item
-    .locator(
-      "span[aria-hidden='true'], p"
-    )
-    .allTextContents();
+  const rawValues =
+    await item
+      .locator(
+        "span[aria-hidden='true'], p"
+      )
+      .allTextContents();
 
-  const lines = uniqueLines(rawValues);
+  const lines =
+    uniqueLines(
+      rawValues
+    );
 
-  if (lines.length < 2) {
+  if (
+    lines.length <
+    2
+  ) {
     return null;
   }
 
   const dateRangeText =
-    lines.find(looksLikeDateRange) ?? null;
+    lines.find(
+      looksLikeDateRange
+    ) ?? null;
 
   if (!dateRangeText) {
     return null;
   }
 
   const durationText =
-    lines.find(looksLikeDuration) ?? null;
+    lines.find(
+      looksLikeDuration
+    ) ?? null;
 
   const dateIndex =
-    lines.indexOf(dateRangeText);
+    lines.indexOf(
+      dateRangeText
+    );
 
   const preDateLines =
-    lines.slice(0, dateIndex);
+    lines.slice(
+      0,
+      dateIndex
+    );
 
   const jobTitle =
-    preDateLines.find((line) => {
-      if (/^Experience$/i.test(line)) {
-        return false;
-      }
+    preDateLines.find(
+      (line) => {
+        if (
+          /^Experience$/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
 
-      if (/^Skills?:/i.test(line)) {
-        return false;
-      }
+        if (
+          /^Skills?:/i.test(
+            line
+          )
+        ) {
+          return false;
+        }
 
-      if (looksLikeDuration(line)) {
-        return false;
-      }
+        if (
+          looksLikeDuration(
+            line
+          )
+        ) {
+          return false;
+        }
 
-      return true;
-    }) ?? null;
+        return true;
+      }
+    ) ?? null;
 
   if (!jobTitle) {
     return null;
   }
 
   const jobTitleIndex =
-    preDateLines.indexOf(jobTitle);
+    preDateLines.indexOf(
+      jobTitle
+    );
 
   const companyLine =
     preDateLines
-      .slice(jobTitleIndex + 1)
-      .find((line) => {
-        if (line === dateRangeText) {
+      .slice(
+        jobTitleIndex +
+        1
+      )
+      .find(
+        (line) => {
+          if (
+            looksLikeDateRange(
+              line
+            )
+          ) {
+            return false;
+          }
+
+          if (
+            looksLikeDuration(
+              line
+            )
+          ) {
+            return false;
+          }
+
+          return true;
+        }
+      ) ?? null;
+
+  const parsedCompany =
+    parseCompanyLine(
+      companyLine
+    );
+
+  const companyLink =
+    item
+      .locator(
+        'a[href*="/company/"]'
+      )
+      .first();
+
+  const companyLinkCount =
+    await companyLink.count();
+
+  const linkedCompanyName =
+    companyLinkCount > 0
+      ? normalizeText(
+          await companyLink
+            .textContent()
+            .catch(
+              () => null
+            )
+        )
+      : null;
+
+  const rawCompanyUrl =
+    companyLinkCount > 0
+      ? normalizeText(
+          await companyLink
+            .getAttribute(
+              "href"
+            )
+            .catch(
+              () => null
+            )
+        )
+      : null;
+
+  const companyUrl =
+    rawCompanyUrl
+      ? normalizeLinkedInUrl(
+          rawCompanyUrl
+        )
+      : null;
+
+  const experienceLocation =
+    lines
+      .slice(
+        dateIndex +
+        1
+      )
+      .find(
+        (line) => {
+          if (
+            line ===
+            durationText
+          ) {
+            return false;
+          }
+
+          if (
+            /^Skills?:/i.test(
+              line
+            )
+          ) {
+            return false;
+          }
+
+          return looksLikeLocation(
+            line
+          );
+        }
+      ) ?? null;
+
+  const excluded =
+    new Set(
+      [
+        jobTitle,
+        companyLine,
+        dateRangeText,
+        durationText,
+        experienceLocation
+      ].filter(
+        (
+          value
+        ): value is string =>
+          Boolean(value)
+      )
+    );
+
+  const descriptionLines =
+    lines.filter(
+      (line) => {
+        if (
+          excluded.has(
+            line
+          )
+        ) {
           return false;
         }
 
-        if (looksLikeDateRange(line)) {
+        if (
+          /^Experience$/i.test(
+            line
+          )
+        ) {
           return false;
         }
 
-        if (looksLikeDuration(line)) {
+        if (
+          /^Skills?:/i.test(
+            line
+          )
+        ) {
           return false;
         }
 
         return true;
-      }) ?? null;
-
-  const parsedCompany =
-    parseCompanyLine(companyLine);
-
-  const linkedCompany =
-    await findCompanyLink(item);
-
-  const experienceLocation =
-    lines
-      .slice(dateIndex + 1)
-      .find((line) => {
-        if (line === durationText) {
-          return false;
-        }
-
-        if (/^Skills?:/i.test(line)) {
-          return false;
-        }
-
-        return looksLikeLocation(line);
-      }) ?? null;
-
-  const excludedLines = new Set(
-    [
-      jobTitle,
-      companyLine,
-      dateRangeText,
-      durationText,
-      experienceLocation
-    ].filter(
-      (value): value is string =>
-        Boolean(value)
-    )
-  );
-
-  const descriptionLines =
-    lines.filter((line) => {
-      if (excludedLines.has(line)) {
-        return false;
       }
-
-      if (/^Experience$/i.test(line)) {
-        return false;
-      }
-
-      if (/^Skills?:/i.test(line)) {
-        return false;
-      }
-
-      return true;
-    });
+    );
 
   return {
-    position_order: positionOrder,
-    job_title: jobTitle,
+    position_order:
+      positionOrder,
+
+    job_title:
+      jobTitle,
+
     company_name:
-      linkedCompany.companyName ??
+      linkedCompanyName ??
       parsedCompany.companyName,
+
     company_url:
-      linkedCompany.companyUrl,
+      companyUrl,
+
     employment_type:
       parsedCompany.employmentType,
+
     location:
       experienceLocation,
+
     date_range_text:
       dateRangeText,
+
     duration_text:
       durationText,
+
     description:
-      descriptionLines.length > 0
-        ? descriptionLines.join("\n")
+      descriptionLines.length >
+      0
+        ? descriptionLines.join(
+            "\n"
+          )
         : null,
+
     raw_text:
-      lines.join("\n")
+      lines.join(
+        "\n"
+      )
   };
 }
 
 async function extractExperiences(
   page: Page
 ): Promise<Experience[]> {
-  await scrollExperiencePage(page);
+  await scrollExperiencePage(
+    page
+  );
 
   const items =
-    await getExperienceItems(page);
+    await getExperienceItems(
+      page
+    );
 
   const itemCount =
     await items.count();
 
-  console.log(
-    `[Experience] Tìm thấy ${itemCount} item tiềm năng.`
-  );
+  const experiences:
+    Experience[] = [];
 
-  const experiences: Experience[] = [];
-  const seenRawTexts = new Set<string>();
+  const seenRawTexts =
+    new Set<string>();
+
+  console.log(
+    `[Experience] ${itemCount} item tiềm năng`
+  );
 
   for (
     let index = 0;
@@ -1038,7 +1381,8 @@ async function extractExperiences(
     const experience =
       await extractExperienceItem(
         items.nth(index),
-        experiences.length + 1
+        experiences.length +
+        1
       );
 
     if (!experience) {
@@ -1057,18 +1401,15 @@ async function extractExperiences(
       experience.raw_text
     );
 
-    experiences.push(experience);
+    experiences.push(
+      experience
+    );
 
     console.log(
-      [
-        "[Experience]",
-        `${experiences.length}.`,
-        experience.job_title ??
-          "Không có title",
-        "|",
-        experience.company_name ??
-          "Không có company"
-      ].join(" ")
+      `[Experience] ` +
+      `${experiences.length}. ` +
+      `${experience.job_title ?? "Unknown"} | ` +
+      `${experience.company_name ?? "Unknown"}`
     );
   }
 
@@ -1079,81 +1420,252 @@ async function scanAndUpdateCandidateExperience(
   page: Page,
   candidate: Candidate
 ): Promise<void> {
-  console.log("");
-  console.log(
-    `[Profile] Đang vào: ${
-      candidate.full_name ??
-      candidate.profile_url
-    }`
-  );
-
-  await updateExperienceStatus(
+  await updateCandidate(
     candidate.profile_url,
     {
       experience_scan_status:
         "scanning",
-      experience_scan_error: null
+
+      experience_scan_error:
+        null
     }
   );
 
   try {
+    console.log(
+      `[Experience] Đang scan: ` +
+      `${candidate.full_name ?? candidate.profile_url}`
+    );
+
     await openExperiencePage(
       page,
       candidate.profile_url
     );
 
     const experiences =
-      await extractExperiences(page);
+      await extractExperiences(
+        page
+      );
 
-    await updateExperienceStatus(
+    await updateCandidate(
       candidate.profile_url,
       {
         experiences,
+
         experience_count:
           experiences.length,
+
         experience_scan_status:
           "completed",
+
         experience_scanned_at:
-          new Date().toISOString(),
-        experience_scan_error: null
+          new Date()
+            .toISOString(),
+
+        experience_scan_error:
+          null
       }
     );
 
     console.log(
-      `[Profile] Đã lưu ${experiences.length} experience.`
+      `[Experience] Đã lưu ${experiences.length} position`
     );
-  } catch (error: unknown) {
+  } catch (
+    error: unknown
+  ) {
     const message =
       error instanceof Error
         ? error.message
         : String(error);
 
-    await updateExperienceStatus(
+    await updateCandidate(
       candidate.profile_url,
       {
         experiences: [],
-        experience_count: 0,
+
+        experience_count:
+          0,
+
         experience_scan_status:
           "failed",
+
         experience_scanned_at:
-          new Date().toISOString(),
+          new Date()
+            .toISOString(),
+
         experience_scan_error:
           message
       }
     );
 
     console.error(
-      `[Profile] Scan lỗi: ${message}`
+      `[Experience] Lỗi: ${message}`
+    );
+  }
+}
+
+async function scanAndUpdateCandidateEmail(
+  candidate: Candidate
+): Promise<void> {
+  await updateCandidate(
+    candidate.profile_url,
+    {
+      email_scan_status:
+        "scanning",
+
+      email_scan_error:
+        null
+    }
+  );
+
+  try {
+    console.log(
+      `[Email] Đang tìm: ` +
+      `${candidate.full_name ?? candidate.profile_url}`
+    );
+
+    const result =
+      await findEmailsWithApify(
+        candidate.profile_url
+      );
+
+    const checkedAt =
+      new Date()
+        .toISOString();
+
+    if (
+      result.emails.length ===
+      0
+    ) {
+      await updateCandidate(
+        candidate.profile_url,
+        {
+          emails: [],
+
+          work_email:
+            null,
+
+          personal_emails:
+            [],
+
+          email_count:
+            0,
+
+          email_source:
+            null,
+
+          email_scan_status:
+            "not_found",
+
+          email_checked_at:
+            checkedAt,
+
+          email_scan_error:
+            null
+        }
+      );
+
+      console.log(
+        "[Email] Không tìm thấy email"
+      );
+
+      return;
+    }
+
+    await updateCandidate(
+      candidate.profile_url,
+      {
+        emails:
+          result.emails,
+
+        work_email:
+          result.workEmail,
+
+        personal_emails:
+          result.personalEmails,
+
+        email_count:
+          result.emails.length,
+
+        email_source:
+          result.source,
+
+        email_scan_status:
+          "completed",
+
+        email_checked_at:
+          checkedAt,
+
+        email_scan_error:
+          null
+      }
+    );
+
+    console.log(
+      `[Email] Đã lưu ${result.emails.length} email`
+    );
+
+    result.emails.forEach(
+      (
+        email,
+        index
+      ) => {
+        console.log(
+          `  ${index + 1}. ${email}`
+        );
+      }
+    );
+  } catch (
+    error: unknown
+  ) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    await updateCandidate(
+      candidate.profile_url,
+      {
+        emails: [],
+
+        work_email:
+          null,
+
+        personal_emails:
+          [],
+
+        email_count:
+          0,
+
+        email_source:
+          null,
+
+        email_scan_status:
+          "failed",
+
+        email_checked_at:
+          new Date()
+            .toISOString(),
+
+        email_scan_error:
+          message
+      }
+    );
+
+    console.error(
+      `[Email] Lỗi: ${message}`
     );
   }
 }
 
 function buildSearchPageUrl(
-  filteredSearchUrl: string,
+  baseUrl: string,
   pageNumber: number
 ): string {
   const url =
-    new URL(filteredSearchUrl);
+    new URL(
+      baseUrl
+    );
 
   url.searchParams.set(
     "page",
@@ -1163,56 +1675,30 @@ function buildSearchPageUrl(
   return url.toString();
 }
 
-async function openSearchPageNumber(
-  page: Page,
-  filteredSearchUrl: string,
-  pageNumber: number
-): Promise<void> {
-  const targetUrl =
-    buildSearchPageUrl(
-      filteredSearchUrl,
-      pageNumber
-    );
-
-  console.log(
-    `[Navigation] Đang mở search page ${pageNumber}...`
-  );
-
-  await page.goto(targetUrl, {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000
-  });
-
-  await page.waitForURL(
-    (currentUrl) =>
-      currentUrl.pathname.includes(
-        "/search/results/people"
-      ) &&
-      currentUrl.searchParams.get(
-        "page"
-      ) === String(pageNumber),
-    {
-      timeout: 30_000
-    }
-  );
-
-  await page.waitForTimeout(3_000);
-}
-
 async function main(): Promise<void> {
   const keyword =
-    getArgument("keyword");
+    getArgument(
+      "keyword"
+    );
 
   const location =
-    getArgument("location");
+    getArgument(
+      "location"
+    );
 
-  const pagesToScan = Number(
-    getArgument("pages") || "3"
-  );
+  const pagesToScan =
+    Number(
+      getArgument(
+        "pages"
+      ) || "3"
+    );
 
-  const profileLimit = Number(
-    getArgument("profile-limit") || "0"
-  );
+  const profileLimit =
+    Number(
+      getArgument(
+        "profile-limit"
+      ) || "0"
+    );
 
   if (!keyword) {
     throw new Error(
@@ -1221,9 +1707,13 @@ async function main(): Promise<void> {
   }
 
   if (
-    !Number.isInteger(pagesToScan) ||
-    pagesToScan < 1 ||
-    pagesToScan > 3
+    !Number.isInteger(
+      pagesToScan
+    ) ||
+    pagesToScan <
+      1 ||
+    pagesToScan >
+      3
   ) {
     throw new Error(
       "--pages phải là số từ 1 đến 3."
@@ -1231,35 +1721,48 @@ async function main(): Promise<void> {
   }
 
   if (
-    !Number.isInteger(profileLimit) ||
-    profileLimit < 0
+    !Number.isInteger(
+      profileLimit
+    ) ||
+    profileLimit <
+      0
   ) {
     throw new Error(
       "--profile-limit phải là số nguyên từ 0 trở lên."
     );
   }
 
-  let context: BrowserContext | null =
-    null;
+  let context:
+    BrowserContext |
+    null = null;
 
   try {
     context =
-      await chromium.launchPersistentContext(
-        profilePath,
-        {
-          channel: "chrome",
-          headless: false,
-          viewport: null,
-          args: [
-            "--start-maximized",
-            "--no-first-run",
-            "--no-default-browser-check"
-          ]
-        }
-      );
+      await chromium
+        .launchPersistentContext(
+          profilePath,
+          {
+            channel:
+              "chrome",
+
+            headless:
+              false,
+
+            viewport:
+              null,
+
+            args: [
+              "--start-maximized",
+              "--no-first-run",
+              "--no-default-browser-check"
+            ]
+          }
+        );
 
     const page =
-      await getSinglePage(context);
+      await getSinglePage(
+        context
+      );
 
     await openSearchPage(
       page,
@@ -1274,25 +1777,38 @@ async function main(): Promise<void> {
     const filteredSearchUrl =
       page.url();
 
-    const allCandidates:
-      Candidate[] = [];
-
-    let processedProfiles = 0;
+    let processedProfiles =
+      0;
 
     for (
       let pageNumber = 1;
       pageNumber <= pagesToScan;
       pageNumber += 1
     ) {
-      await openSearchPageNumber(
-        page,
-        filteredSearchUrl,
-        pageNumber
-      );
+      const searchPageUrl =
+        buildSearchPageUrl(
+          filteredSearchUrl,
+          pageNumber
+        );
 
       console.log("");
       console.log(
-        `Đang scan danh sách trang ${pageNumber}...`
+        `[Navigation] Trang ${pageNumber}`
+      );
+
+      await page.goto(
+        searchPageUrl,
+        {
+          waitUntil:
+            "domcontentloaded",
+
+          timeout:
+            60_000
+        }
+      );
+
+      await page.waitForTimeout(
+        3_000
       );
 
       const candidates =
@@ -1301,23 +1817,20 @@ async function main(): Promise<void> {
           pageNumber
         );
 
-      allCandidates.push(
-        ...candidates
-      );
-
       await saveBasicCandidates(
         candidates
       );
 
-      for (const candidate of candidates) {
+      for (
+        const candidate
+        of candidates
+      ) {
         if (
-          profileLimit > 0 &&
-          processedProfiles >= profileLimit
+          profileLimit >
+            0 &&
+          processedProfiles >=
+            profileLimit
         ) {
-          console.log(
-            `[Limit] Đã đạt profile-limit=${profileLimit}.`
-          );
-
           break;
         }
 
@@ -1326,7 +1839,12 @@ async function main(): Promise<void> {
           candidate
         );
 
-        processedProfiles += 1;
+        await scanAndUpdateCandidateEmail(
+          candidate
+        );
+
+        processedProfiles +=
+          1;
 
         await page.waitForTimeout(
           2_000
@@ -1334,61 +1852,54 @@ async function main(): Promise<void> {
       }
 
       if (
-        profileLimit > 0 &&
-        processedProfiles >= profileLimit
+        profileLimit >
+          0 &&
+        processedProfiles >=
+          profileLimit
       ) {
         break;
       }
     }
 
-    const uniqueCandidates =
-      Array.from(
-        new Map(
-          allCandidates.map(
-            (candidate) => [
-              candidate.profile_url,
-              candidate
-            ]
-          )
-        ).values()
-      );
-
     console.log("");
     console.log(
-      `Tổng candidate card đọc được: ${allCandidates.length}`
-    );
-
-    console.log(
-      `Tổng profile không trùng: ${uniqueCandidates.length}`
-    );
-
-    console.log(
-      `Tổng profile đã scan experience: ${processedProfiles}`
-    );
-
-    console.log(
-      "Hoàn thành toàn bộ flow."
+      `Hoàn thành ${processedProfiles} profile.`
     );
   } finally {
     await context
       ?.close()
-      .catch(() => undefined);
+      .catch(
+        () => undefined
+      );
   }
 }
 
 main().catch(
-  (error: unknown) => {
+  (
+    error: unknown
+  ) => {
     console.error(
       "\nLinkedIn sourcing flow thất bại:"
     );
 
-    if (error instanceof Error) {
-      console.error(error.message);
-      console.error(error.stack);
+    if (
+      error instanceof Error
+    ) {
+      console.error(
+        error.message
+      );
+
+      console.error(
+        error.stack
+      );
     } else {
-      console.error(error);
+      console.error(
+        error
+      );
     }
 
-    process.exit(1);
+    process.exit(
+      1
+    );
   }
 );
