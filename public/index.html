@@ -8,7 +8,7 @@
     content="width=device-width, initial-scale=1"
   />
 
-  <title>LinkedIn Sourcing Dashboard</title>
+  <title>Hermes LinkedIn Sourcing</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -24,15 +24,21 @@
   <style>
     :root {
       --page-bg: #f4f5f8;
-      --panel-bg: #eaedf3;
-      --card-shell: #ebedf3;
+      --sidebar-bg: #eaedf3;
+      --panel-shell: #ebedf3;
+      --surface: #ffffff;
+
       --text-main: #1e293b;
       --text-secondary: #64748b;
       --text-muted: #94a3b8;
-      --line: #e2e8f0;
+
+      --border: #e2e8f0;
+
       --primary: #6366f1;
       --primary-soft: #e0e7ff;
+
       --success: #10b981;
+      --warning: #f59e0b;
       --danger: #e15b49;
       --linkedin: #0a66c2;
     }
@@ -41,10 +47,16 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
+
       font-family: "Inter", sans-serif;
+
       color: var(--text-main);
       background: var(--page-bg);
     }
@@ -55,10 +67,15 @@
       font: inherit;
     }
 
+    button {
+      cursor: pointer;
+    }
+
     .sidebar-link {
       transition:
         color 160ms ease,
-        background 160ms ease;
+        background-color 160ms ease,
+        box-shadow 160ms ease;
     }
 
     .sidebar-link:hover {
@@ -68,18 +85,20 @@
 
     .sidebar-link.active {
       color: #4338ca;
-      background: white;
-      box-shadow: 0 4px 14px rgb(15 23 42 / 5%);
+      background: #ffffff;
+      box-shadow: 0 5px 16px rgb(15 23 42 / 5%);
     }
 
     .metric-shell,
-    .candidate-panel {
-      background: var(--card-shell);
-      border: 1px solid rgba(203, 213, 225, 0.65);
+    .panel-shell {
+      border: 1px solid rgb(203 213 225 / 65%);
+      background: var(--panel-shell);
     }
 
     .candidate-row {
-      transition: background 160ms ease;
+      transition:
+        background-color 160ms ease,
+        box-shadow 160ms ease;
     }
 
     .candidate-row:hover {
@@ -106,18 +125,22 @@
 
     .realtime-dot::after {
       content: "";
+
       position: absolute;
       inset: -4px;
+
       border: 1px solid currentColor;
       border-radius: 999px;
+
       opacity: 0;
+
       animation: pulse-ring 1.8s infinite;
     }
 
     @keyframes pulse-ring {
       0% {
         transform: scale(0.7);
-        opacity: 0.65;
+        opacity: 0.7;
       }
 
       100% {
@@ -126,9 +149,53 @@
       }
     }
 
+    .experience-timeline {
+      position: relative;
+    }
+
+    .experience-timeline::before {
+      content: "";
+
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      left: 8px;
+
+      width: 2px;
+
+      background: #e2e8f0;
+    }
+
+    .experience-item {
+      position: relative;
+      padding-left: 32px;
+    }
+
+    .experience-item::before {
+      content: "";
+
+      position: absolute;
+      top: 21px;
+      left: 1px;
+
+      width: 16px;
+      height: 16px;
+
+      border: 4px solid #f4f5f8;
+      border-radius: 999px;
+
+      background: var(--primary);
+      z-index: 1;
+    }
+
+    .table-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+
     .table-scroll::-webkit-scrollbar {
-      height: 8px;
       width: 8px;
+      height: 8px;
     }
 
     .table-scroll::-webkit-scrollbar-track {
@@ -138,6 +205,15 @@
     .table-scroll::-webkit-scrollbar-thumb {
       background: #cbd5e1;
       border-radius: 999px;
+    }
+
+    .line-clamp-2 {
+      display: -webkit-box;
+
+      overflow: hidden;
+
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     @media (max-width: 1024px) {
@@ -175,12 +251,16 @@
             <i class="fa-brands fa-linkedin-in"></i>
           </div>
 
-          <div>
-            <div class="text-sm font-bold text-slate-800">
+          <div class="min-w-0">
+            <div
+              class="truncate text-sm font-bold text-slate-800"
+            >
               Hermes Sourcing
             </div>
 
-            <div class="text-xs font-medium text-slate-400">
+            <div
+              class="truncate text-xs font-medium text-slate-400"
+            >
               Recruitment Operations
             </div>
           </div>
@@ -188,6 +268,7 @@
 
         <nav class="mt-5 space-y-1">
           <button
+            type="button"
             class="sidebar-link active flex w-full items-center
                    gap-3 rounded-2xl px-4 py-3 text-left
                    text-sm font-semibold"
@@ -197,6 +278,7 @@
           </button>
 
           <button
+            type="button"
             class="sidebar-link flex w-full items-center gap-3
                    rounded-2xl px-4 py-3 text-left
                    text-sm font-medium text-slate-500"
@@ -206,6 +288,7 @@
           </button>
 
           <button
+            type="button"
             class="sidebar-link flex w-full items-center gap-3
                    rounded-2xl px-4 py-3 text-left
                    text-sm font-medium text-slate-500"
@@ -215,6 +298,7 @@
           </button>
 
           <button
+            type="button"
             class="sidebar-link flex w-full items-center gap-3
                    rounded-2xl px-4 py-3 text-left
                    text-sm font-medium text-slate-500"
@@ -224,16 +308,16 @@
           </button>
         </nav>
 
-        <div class="mt-auto">
+        <div class="mt-auto space-y-3">
           <div
             class="rounded-2xl border border-white/80
                    bg-white/70 p-4"
           >
             <div
-              class="mb-2 text-xs font-semibold uppercase
+              class="mb-2 text-[11px] font-bold uppercase
                      tracking-wide text-slate-400"
             >
-              Scanner status
+              Supabase realtime
             </div>
 
             <div class="flex items-center gap-2">
@@ -250,24 +334,50 @@
               </span>
             </div>
           </div>
+
+          <div
+            class="rounded-2xl border border-white/80
+                   bg-white/70 p-4"
+          >
+            <div
+              class="mb-2 text-[11px] font-bold uppercase
+                     tracking-wide text-slate-400"
+            >
+              Data source
+            </div>
+
+            <div
+              class="flex items-center gap-2 text-xs
+                     font-semibold text-slate-600"
+            >
+              <i
+                class="fa-solid fa-database text-indigo-500"
+              ></i>
+
+              linkedin_candidates
+            </div>
+          </div>
         </div>
       </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN -->
     <main class="min-w-0 p-5 md:p-8">
-      <!-- TOP BAR -->
+      <!-- HEADER -->
       <header
         class="mb-7 flex flex-col gap-4 md:flex-row
                md:items-center md:justify-between"
       >
         <div>
-          <h1 class="text-2xl font-bold tracking-tight text-slate-800">
+          <h1
+            class="text-2xl font-bold tracking-tight text-slate-800"
+          >
             Candidate Dashboard
           </h1>
 
           <p class="mt-1 text-sm font-medium text-slate-400">
-            Theo dõi dữ liệu ứng viên được scan từ LinkedIn
+            Theo dõi ứng viên và lịch sử làm việc được scan từ
+            LinkedIn
           </p>
         </div>
 
@@ -301,7 +411,7 @@
         </div>
       </header>
 
-      <!-- KPI CARDS -->
+      <!-- KPI -->
       <section
         class="mb-7 grid grid-cols-1 gap-4
                sm:grid-cols-2 xl:grid-cols-4"
@@ -311,7 +421,7 @@
             <div class="mb-5 flex items-start justify-between">
               <div>
                 <div
-                  class="text-xs font-semibold uppercase
+                  class="text-[11px] font-bold uppercase
                          tracking-wide text-slate-400"
                 >
                   Total candidates
@@ -333,9 +443,7 @@
               </div>
             </div>
 
-            <div
-              class="text-xs font-medium text-slate-400"
-            >
+            <div class="text-xs font-medium text-slate-400">
               Tổng profile không trùng
             </div>
           </div>
@@ -346,14 +454,14 @@
             <div class="mb-5 flex items-start justify-between">
               <div>
                 <div
-                  class="text-xs font-semibold uppercase
+                  class="text-[11px] font-bold uppercase
                          tracking-wide text-slate-400"
                 >
-                  Company detected
+                  Experience completed
                 </div>
 
                 <div
-                  id="companyCount"
+                  id="experienceCompletedCount"
                   class="mt-2 text-3xl font-bold text-slate-800"
                 >
                   0
@@ -364,12 +472,12 @@
                 class="flex h-10 w-10 items-center justify-center
                        rounded-2xl bg-emerald-50 text-emerald-500"
               >
-                <i class="fa-solid fa-building"></i>
+                <i class="fa-solid fa-briefcase"></i>
               </div>
             </div>
 
             <div class="text-xs font-medium text-slate-400">
-              Có current company hint
+              Profile đã scan experience
             </div>
           </div>
         </article>
@@ -379,14 +487,14 @@
             <div class="mb-5 flex items-start justify-between">
               <div>
                 <div
-                  class="text-xs font-semibold uppercase
+                  class="text-[11px] font-bold uppercase
                          tracking-wide text-slate-400"
                 >
-                  Connectable
+                  Total positions
                 </div>
 
                 <div
-                  id="connectCount"
+                  id="totalExperienceCount"
                   class="mt-2 text-3xl font-bold text-slate-800"
                 >
                   0
@@ -397,12 +505,12 @@
                 class="flex h-10 w-10 items-center justify-center
                        rounded-2xl bg-blue-50 text-[#0a66c2]"
               >
-                <i class="fa-solid fa-user-plus"></i>
+                <i class="fa-solid fa-building-user"></i>
               </div>
             </div>
 
             <div class="text-xs font-medium text-slate-400">
-              Có action Connect
+              Tổng vị trí công việc đã lấy
             </div>
           </div>
         </article>
@@ -412,7 +520,7 @@
             <div class="mb-5 flex items-start justify-between">
               <div>
                 <div
-                  class="text-xs font-semibold uppercase
+                  class="text-[11px] font-bold uppercase
                          tracking-wide text-slate-400"
                 >
                   Last scanned
@@ -420,7 +528,7 @@
 
                 <div
                   id="lastUpdated"
-                  class="mt-2 text-lg font-bold text-slate-800"
+                  class="mt-2 text-base font-bold text-slate-800"
                 >
                   —
                 </div>
@@ -435,13 +543,13 @@
             </div>
 
             <div class="text-xs font-medium text-slate-400">
-              Thời gian cập nhật mới nhất
+              Dữ liệu cập nhật gần nhất
             </div>
           </div>
         </article>
       </section>
 
-      <!-- FILTER BAR -->
+      <!-- FILTERS -->
       <section
         class="mb-5 rounded-3xl border border-slate-200/70
                bg-white p-4 shadow-sm"
@@ -460,7 +568,7 @@
             <input
               id="searchInput"
               type="search"
-              placeholder="Search candidate, headline, company or location..."
+              placeholder="Tìm theo tên, headline, công ty, vị trí hoặc location..."
               class="w-full rounded-2xl border border-slate-200
                      bg-[#f8f9fb] py-3 pl-11 pr-4
                      text-sm font-medium text-slate-700
@@ -471,16 +579,31 @@
           </div>
 
           <select
-            id="companyFilter"
+            id="experienceStatusFilter"
             class="rounded-2xl border border-slate-200
                    bg-[#f8f9fb] px-4 py-3 text-sm
                    font-semibold text-slate-600 outline-none
                    transition focus:border-indigo-300
                    focus:ring-4 focus:ring-indigo-50"
           >
-            <option value="">All company states</option>
-            <option value="with-company">With company hint</option>
-            <option value="without-company">Without company hint</option>
+            <option value="">All scan statuses</option>
+            <option value="completed">Completed</option>
+            <option value="scanning">Scanning</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+          </select>
+
+          <select
+            id="experienceCountFilter"
+            class="rounded-2xl border border-slate-200
+                   bg-[#f8f9fb] px-4 py-3 text-sm
+                   font-semibold text-slate-600 outline-none
+                   transition focus:border-indigo-300
+                   focus:ring-4 focus:ring-indigo-50"
+          >
+            <option value="">All experience counts</option>
+            <option value="with-experience">Has experience</option>
+            <option value="without-experience">No experience</option>
           </select>
 
           <select
@@ -500,14 +623,12 @@
         </div>
       </section>
 
-      <!-- CANDIDATE TABLE -->
+      <!-- TABLE -->
       <section
-        class="candidate-panel overflow-hidden
-               rounded-3xl p-1 shadow-sm"
+        class="panel-shell overflow-hidden rounded-3xl
+               p-1 shadow-sm"
       >
-        <div
-          class="rounded-[22px] bg-white shadow-sm"
-        >
+        <div class="rounded-[22px] bg-white shadow-sm">
           <div
             class="flex flex-col gap-3 border-b
                    border-slate-100 px-5 py-5
@@ -539,9 +660,11 @@
           </div>
 
           <div class="table-scroll overflow-auto">
-            <table class="w-full min-w-[1200px] border-collapse">
+            <table class="w-full min-w-[1260px] border-collapse">
               <thead>
                 <tr class="bg-[#f8f9fb]">
+                  <th class="w-12 px-5 py-3"></th>
+
                   <th
                     class="px-5 py-3 text-left text-[11px]
                            font-bold uppercase tracking-wide
@@ -555,7 +678,7 @@
                            font-bold uppercase tracking-wide
                            text-slate-400"
                   >
-                    Headline
+                    Current position
                   </th>
 
                   <th
@@ -571,7 +694,7 @@
                            font-bold uppercase tracking-wide
                            text-slate-400"
                   >
-                    Company hint
+                    Company
                   </th>
 
                   <th
@@ -579,7 +702,7 @@
                            font-bold uppercase tracking-wide
                            text-slate-400"
                   >
-                    Action
+                    Experience
                   </th>
 
                   <th
@@ -587,7 +710,7 @@
                            font-bold uppercase tracking-wide
                            text-slate-400"
                   >
-                    Scanned at
+                    Scan status
                   </th>
 
                   <th
@@ -617,11 +740,11 @@
               </div>
 
               <h3 class="text-sm font-bold text-slate-700">
-                No candidates found
+                Không có ứng viên phù hợp
               </h3>
 
               <p class="mt-2 text-xs font-medium text-slate-400">
-                Chưa có dữ liệu phù hợp với bộ lọc hiện tại.
+                Hãy thay đổi từ khóa hoặc bộ lọc hiện tại.
               </p>
             </div>
           </div>
@@ -637,62 +760,115 @@
       createClient
     } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    const config = window.APP_CONFIG;
+    const config = window.APP_CONFIG ?? {};
+
+    const supabaseUrl =
+      String(config.supabaseUrl ?? "").trim();
+
+    const supabaseAnonKey =
+      String(config.supabaseAnonKey ?? "").trim();
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      document.body.innerHTML = `
+        <div
+          style="
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+            font-family:Inter,sans-serif;
+            background:#f4f5f8;
+          "
+        >
+          <div
+            style="
+              width:100%;
+              max-width:560px;
+              border:1px solid #fecaca;
+              border-radius:24px;
+              background:#ffffff;
+              padding:28px;
+              box-shadow:0 12px 35px rgba(15,23,42,.08);
+            "
+          >
+            <strong style="color:#b91c1c;">
+              Missing Supabase configuration
+            </strong>
+
+            <p style="color:#64748b; line-height:1.6;">
+              Kiểm tra SUPABASE_URL và SUPABASE_ANON_KEY
+              trong Railway Variables.
+            </p>
+          </div>
+        </div>
+      `;
+
+      throw new Error(
+        "Missing SUPABASE_URL or SUPABASE_ANON_KEY"
+      );
+    }
 
     const supabase = createClient(
-      config.supabaseUrl,
-      config.supabaseAnonKey
+      supabaseUrl,
+      supabaseAnonKey
     );
 
     const state = {
       candidates: [],
-      highlightedIds: new Set()
+      highlightedIds: new Set(),
+      expandedIds: new Set()
     };
 
-    const candidateRows =
-      document.querySelector("#candidateRows");
+    const elements = {
+      candidateRows:
+        document.querySelector("#candidateRows"),
 
-    const emptyState =
-      document.querySelector("#emptyState");
+      emptyState:
+        document.querySelector("#emptyState"),
 
-    const searchInput =
-      document.querySelector("#searchInput");
+      searchInput:
+        document.querySelector("#searchInput"),
 
-    const actionFilter =
-      document.querySelector("#actionFilter");
+      actionFilter:
+        document.querySelector("#actionFilter"),
 
-    const companyFilter =
-      document.querySelector("#companyFilter");
+      experienceStatusFilter:
+        document.querySelector("#experienceStatusFilter"),
 
-    const reloadButton =
-      document.querySelector("#reloadButton");
+      experienceCountFilter:
+        document.querySelector("#experienceCountFilter"),
 
-    const totalCandidates =
-      document.querySelector("#totalCandidates");
+      reloadButton:
+        document.querySelector("#reloadButton"),
 
-    const companyCount =
-      document.querySelector("#companyCount");
+      totalCandidates:
+        document.querySelector("#totalCandidates"),
 
-    const connectCount =
-      document.querySelector("#connectCount");
+      experienceCompletedCount:
+        document.querySelector("#experienceCompletedCount"),
 
-    const lastUpdated =
-      document.querySelector("#lastUpdated");
+      totalExperienceCount:
+        document.querySelector("#totalExperienceCount"),
 
-    const resultCount =
-      document.querySelector("#resultCount");
+      lastUpdated:
+        document.querySelector("#lastUpdated"),
 
-    const statusDot =
-      document.querySelector("#statusDot");
+      resultCount:
+        document.querySelector("#resultCount"),
 
-    const statusText =
-      document.querySelector("#statusText");
+      statusDot:
+        document.querySelector("#statusDot"),
 
-    const sidebarStatusDot =
-      document.querySelector("#sidebarStatusDot");
+      statusText:
+        document.querySelector("#statusText"),
 
-    const sidebarStatusText =
-      document.querySelector("#sidebarStatusText");
+      sidebarStatusDot:
+        document.querySelector("#sidebarStatusDot"),
+
+      sidebarStatusText:
+        document.querySelector("#sidebarStatusText")
+    };
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -701,6 +877,19 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function safeUrl(value) {
+      const url = String(value ?? "").trim();
+
+      if (
+        url.startsWith("https://") ||
+        url.startsWith("http://")
+      ) {
+        return escapeHtml(url);
+      }
+
+      return "#";
     }
 
     function initials(name) {
@@ -713,15 +902,119 @@
     }
 
     function formatDateTime(value) {
-      if (!value) return "—";
+      if (!value) {
+        return "—";
+      }
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return "—";
+      }
 
       return new Intl.DateTimeFormat("vi-VN", {
         dateStyle: "short",
-        timeStyle: "medium"
-      }).format(new Date(value));
+        timeStyle: "short"
+      }).format(date);
     }
 
-    function actionClass(action) {
+    function normalizeExperiences(value) {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+
+          return Array.isArray(parsed)
+            ? parsed
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      return [];
+    }
+
+    function getExperienceCount(candidate) {
+      const experiences =
+        normalizeExperiences(candidate.experiences);
+
+      const storedCount =
+        Number(candidate.experience_count);
+
+      if (
+        Number.isFinite(storedCount) &&
+        storedCount >= 0
+      ) {
+        return storedCount;
+      }
+
+      return experiences.length;
+    }
+
+    function normalizeStatus(status) {
+      const allowedStatuses = [
+        "completed",
+        "scanning",
+        "pending",
+        "failed"
+      ];
+
+      return allowedStatuses.includes(status)
+        ? status
+        : "pending";
+    }
+
+    function statusBadge(status) {
+      const mapping = {
+        completed: {
+          label: "Completed",
+          className: "bg-emerald-50 text-emerald-600",
+          icon: "fa-circle-check"
+        },
+
+        scanning: {
+          label: "Scanning",
+          className: "bg-blue-50 text-blue-600",
+          icon: "fa-spinner fa-spin"
+        },
+
+        pending: {
+          label: "Pending",
+          className: "bg-amber-50 text-amber-600",
+          icon: "fa-clock"
+        },
+
+        failed: {
+          label: "Failed",
+          className: "bg-red-50 text-red-500",
+          icon: "fa-circle-exclamation"
+        }
+      };
+
+      const normalizedStatus =
+        normalizeStatus(status);
+
+      const current =
+        mapping[normalizedStatus];
+
+      return `
+        <span
+          class="inline-flex items-center gap-1.5
+                 rounded-full px-3 py-1.5
+                 text-xs font-bold
+                 ${current.className}"
+        >
+          <i class="fa-solid ${current.icon}"></i>
+          ${current.label}
+        </span>
+      `;
+    }
+
+    function actionBadge(action) {
       const mapping = {
         Connect: "bg-blue-50 text-[#0a66c2]",
         Message: "bg-indigo-50 text-indigo-600",
@@ -729,20 +1022,85 @@
         View: "bg-slate-100 text-slate-600"
       };
 
-      return mapping[action] || "bg-slate-100 text-slate-500";
+      const className =
+        mapping[action] ??
+        "bg-slate-100 text-slate-500";
+
+      return `
+        <span
+          class="inline-flex rounded-full px-2.5 py-1
+                 text-[11px] font-bold ${className}"
+        >
+          ${escapeHtml(action || "Candidate")}
+        </span>
+      `;
+    }
+
+    function getLatestExperience(candidate) {
+      const experiences =
+        normalizeExperiences(candidate.experiences);
+
+      if (experiences.length === 0) {
+        return null;
+      }
+
+      return [...experiences].sort(
+        (left, right) =>
+          Number(left.position_order ?? 999) -
+          Number(right.position_order ?? 999)
+      )[0] ?? null;
+    }
+
+    function getCandidateSearchText(candidate) {
+      const experiences =
+        normalizeExperiences(candidate.experiences);
+
+      return [
+        candidate.full_name,
+        candidate.headline,
+        candidate.location,
+        candidate.current_company_hint,
+        candidate.action_type,
+
+        ...experiences.flatMap((experience) => [
+          experience.job_title,
+          experience.company_name,
+          experience.employment_type,
+          experience.location,
+          experience.date_range_text,
+          experience.duration_text,
+          experience.description
+        ])
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
     }
 
     function filteredCandidates() {
       const query =
-        searchInput.value.trim().toLowerCase();
+        elements.searchInput.value
+          .trim()
+          .toLowerCase();
 
       const selectedAction =
-        actionFilter.value;
+        elements.actionFilter.value;
 
-      const selectedCompanyState =
-        companyFilter.value;
+      const selectedStatus =
+        elements.experienceStatusFilter.value;
+
+      const selectedCountState =
+        elements.experienceCountFilter.value;
 
       return state.candidates.filter((candidate) => {
+        const candidateStatus =
+          normalizeStatus(
+            candidate.experience_scan_status
+          );
+
+        const experienceCount =
+          getExperienceCount(candidate);
+
         if (
           selectedAction &&
           candidate.action_type !== selectedAction
@@ -751,15 +1109,22 @@
         }
 
         if (
-          selectedCompanyState === "with-company" &&
-          !candidate.current_company_hint
+          selectedStatus &&
+          candidateStatus !== selectedStatus
         ) {
           return false;
         }
 
         if (
-          selectedCompanyState === "without-company" &&
-          candidate.current_company_hint
+          selectedCountState === "with-experience" &&
+          experienceCount === 0
+        ) {
+          return false;
+        }
+
+        if (
+          selectedCountState === "without-experience" &&
+          experienceCount > 0
         ) {
           return false;
         }
@@ -768,153 +1133,614 @@
           return true;
         }
 
-        const searchable = [
-          candidate.full_name,
-          candidate.headline,
-          candidate.location,
-          candidate.current_company_hint,
-          candidate.action_type
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        return searchable.includes(query);
+        return getCandidateSearchText(
+          candidate
+        ).includes(query);
       });
     }
 
+    function renderExperienceItem(
+      experience,
+      index
+    ) {
+      const title =
+        experience.job_title ||
+        "Position chưa xác định";
+
+      const company =
+        experience.company_name ||
+        "Company chưa xác định";
+
+      const dateRange =
+        experience.date_range_text ||
+        "Không có thời gian";
+
+      const metaItems = [
+        experience.employment_type,
+        experience.location,
+        experience.duration_text
+      ].filter(Boolean);
+
+      const description =
+        String(
+          experience.description ?? ""
+        ).trim();
+
+      const companyUrl =
+        String(
+          experience.company_url ?? ""
+        ).trim();
+
+      return `
+        <article class="experience-item">
+          <div
+            class="rounded-2xl border border-slate-200
+                   bg-white p-5 shadow-sm"
+          >
+            <div
+              class="flex flex-col gap-3 md:flex-row
+                     md:items-start md:justify-between"
+            >
+              <div class="min-w-0">
+                <div
+                  class="mb-1 text-[10px] font-bold
+                         uppercase tracking-wide
+                         text-indigo-500"
+                >
+                  Experience ${index + 1}
+                </div>
+
+                <h4
+                  class="text-sm font-bold text-slate-800"
+                >
+                  ${escapeHtml(title)}
+                </h4>
+
+                <div
+                  class="mt-1 flex flex-wrap items-center
+                         gap-x-2 gap-y-1 text-xs
+                         font-semibold text-slate-500"
+                >
+                  <span>
+                    <i
+                      class="fa-solid fa-building mr-1
+                             text-slate-300"
+                    ></i>
+
+                    ${escapeHtml(company)}
+                  </span>
+
+                  ${
+                    metaItems.length > 0
+                      ? `
+                        <span class="text-slate-300">
+                          •
+                        </span>
+
+                        <span>
+                          ${escapeHtml(
+                            metaItems.join(" · ")
+                          )}
+                        </span>
+                      `
+                      : ""
+                  }
+                </div>
+              </div>
+
+              <div
+                class="shrink-0 rounded-xl bg-[#f4f5f8]
+                       px-3 py-2 text-xs font-bold
+                       text-slate-600"
+              >
+                ${escapeHtml(dateRange)}
+              </div>
+            </div>
+
+            ${
+              description
+                ? `
+                  <p
+                    class="mt-4 whitespace-pre-line
+                           border-t border-slate-100
+                           pt-4 text-xs font-medium
+                           leading-relaxed text-slate-500"
+                  >
+                    ${escapeHtml(description)}
+                  </p>
+                `
+                : ""
+            }
+
+            ${
+              companyUrl
+                ? `
+                  <a
+                    href="${safeUrl(companyUrl)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-4 inline-flex items-center
+                           gap-2 text-xs font-bold
+                           text-[#0a66c2]"
+                    onclick="event.stopPropagation()"
+                  >
+                    View company
+
+                    <i
+                      class="fa-solid
+                             fa-arrow-up-right-from-square"
+                    ></i>
+                  </a>
+                `
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    }
+
+    function renderExperiencePanel(candidate) {
+      const experiences =
+        normalizeExperiences(candidate.experiences);
+
+      const status =
+        normalizeStatus(
+          candidate.experience_scan_status
+        );
+
+      if (status === "failed") {
+        return `
+          <div
+            class="rounded-2xl border border-red-100
+                   bg-red-50 px-5 py-4"
+          >
+            <div class="flex items-start gap-3">
+              <i
+                class="fa-solid fa-circle-exclamation
+                       mt-0.5 text-red-500"
+              ></i>
+
+              <div class="min-w-0">
+                <div class="text-sm font-bold text-red-700">
+                  Experience scan failed
+                </div>
+
+                <div
+                  class="mt-1 break-words text-xs
+                         font-medium leading-relaxed
+                         text-red-500"
+                >
+                  ${escapeHtml(
+                    candidate.experience_scan_error ||
+                    "Không xác định được lỗi."
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (status === "scanning") {
+        return `
+          <div
+            class="flex items-center gap-3 rounded-2xl
+                   border border-blue-100 bg-blue-50
+                   px-5 py-4 text-sm font-semibold
+                   text-blue-600"
+          >
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            Đang scan experience từ LinkedIn...
+          </div>
+        `;
+      }
+
+      if (
+        status === "pending" &&
+        experiences.length === 0
+      ) {
+        return `
+          <div
+            class="flex items-center gap-3 rounded-2xl
+                   border border-amber-100 bg-amber-50
+                   px-5 py-4 text-sm font-semibold
+                   text-amber-600"
+          >
+            <i class="fa-solid fa-clock"></i>
+            Profile đang chờ scan experience.
+          </div>
+        `;
+      }
+
+      if (experiences.length === 0) {
+        return `
+          <div
+            class="rounded-2xl border border-dashed
+                   border-slate-300 bg-white
+                   px-6 py-10 text-center"
+          >
+            <i
+              class="fa-solid fa-briefcase mb-3
+                     text-xl text-slate-300"
+            ></i>
+
+            <div class="text-sm font-bold text-slate-600">
+              Không có experience
+            </div>
+
+            <div
+              class="mt-1 text-xs font-medium
+                     text-slate-400"
+            >
+              Scanner đã hoàn thành nhưng không extract
+              được lịch sử công việc.
+            </div>
+          </div>
+        `;
+      }
+
+      const orderedExperiences =
+        [...experiences].sort(
+          (left, right) =>
+            Number(left.position_order ?? 999) -
+            Number(right.position_order ?? 999)
+        );
+
+      return `
+        <div
+          class="mb-5 flex flex-col gap-3
+                 md:flex-row md:items-center
+                 md:justify-between"
+        >
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">
+              Work experience
+            </h3>
+
+            <p class="mt-1 text-xs font-medium text-slate-400">
+              ${orderedExperiences.length}
+              vị trí được extract từ LinkedIn
+            </p>
+          </div>
+
+          ${
+            candidate.experience_scanned_at
+              ? `
+                <div
+                  class="text-xs font-medium text-slate-400"
+                >
+                  Updated:
+                  ${escapeHtml(
+                    formatDateTime(
+                      candidate.experience_scanned_at
+                    )
+                  )}
+                </div>
+              `
+              : ""
+          }
+        </div>
+
+        <div class="experience-timeline space-y-4">
+          ${orderedExperiences
+            .map(renderExperienceItem)
+            .join("")}
+        </div>
+      `;
+    }
+
     function renderSummary() {
-      totalCandidates.textContent =
-        String(state.candidates.length);
+      const totalCandidates =
+        state.candidates.length;
 
-      companyCount.textContent = String(
+      const completedCandidates =
         state.candidates.filter(
-          (candidate) => candidate.current_company_hint
-        ).length
-      );
+          (candidate) =>
+            normalizeStatus(
+              candidate.experience_scan_status
+            ) === "completed"
+        ).length;
 
-      connectCount.textContent = String(
-        state.candidates.filter(
-          (candidate) => candidate.action_type === "Connect"
-        ).length
-      );
+      const totalPositions =
+        state.candidates.reduce(
+          (total, candidate) =>
+            total + getExperienceCount(candidate),
+          0
+        );
 
-      lastUpdated.textContent =
-        state.candidates[0]?.scanned_at
-          ? formatDateTime(state.candidates[0].scanned_at)
+      const latestTimestamp =
+        state.candidates
+          .flatMap((candidate) => [
+            candidate.experience_scanned_at,
+            candidate.scanned_at
+          ])
+          .filter(Boolean)
+          .map((value) => new Date(value))
+          .filter(
+            (date) =>
+              !Number.isNaN(date.getTime())
+          )
+          .sort(
+            (left, right) =>
+              right.getTime() - left.getTime()
+          )[0] ?? null;
+
+      elements.totalCandidates.textContent =
+        String(totalCandidates);
+
+      elements.experienceCompletedCount.textContent =
+        String(completedCandidates);
+
+      elements.totalExperienceCount.textContent =
+        String(totalPositions);
+
+      elements.lastUpdated.textContent =
+        latestTimestamp
+          ? formatDateTime(latestTimestamp)
           : "—";
     }
 
     function renderTable() {
-      const candidates = filteredCandidates();
+      const candidates =
+        filteredCandidates();
 
-      candidateRows.innerHTML = candidates
-        .map((candidate) => {
-          const isNew =
-            state.highlightedIds.has(candidate.id);
+      elements.candidateRows.innerHTML =
+        candidates
+          .map((candidate) => {
+            const candidateId =
+              String(candidate.id);
 
-          return `
-            <tr
-              class="candidate-row ${isNew ? "is-new" : ""}
-                     border-b border-slate-100"
-            >
-              <td class="px-5 py-4 align-top">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-10 w-10 shrink-0 items-center
-                           justify-center rounded-full
-                           bg-[#e0e7ff] text-xs font-bold
-                           text-[#4f46e5]"
+            const isNew =
+              state.highlightedIds.has(candidateId);
+
+            const isExpanded =
+              state.expandedIds.has(candidateId);
+
+            const experiences =
+              normalizeExperiences(
+                candidate.experiences
+              );
+
+            const experienceCount =
+              getExperienceCount(candidate);
+
+            const latestExperience =
+              getLatestExperience(candidate);
+
+            const currentPosition =
+              latestExperience?.job_title ||
+              candidate.headline ||
+              "—";
+
+            const currentCompany =
+              latestExperience?.company_name ||
+              candidate.current_company_hint ||
+              "—";
+
+            const dateRange =
+              latestExperience?.date_range_text ||
+              "";
+
+            const profileUrl =
+              safeUrl(candidate.profile_url);
+
+            return `
+              <tr
+                class="candidate-row
+                       ${isNew ? "is-new" : ""}
+                       cursor-pointer border-b
+                       border-slate-100"
+                data-candidate-row="${escapeHtml(candidateId)}"
+              >
+                <td class="px-5 py-4 align-middle">
+                  <button
+                    type="button"
+                    data-toggle-candidate="${escapeHtml(candidateId)}"
+                    class="flex h-8 w-8 items-center
+                           justify-center rounded-xl
+                           bg-[#f4f5f8] text-slate-400
+                           transition hover:bg-indigo-50
+                           hover:text-indigo-500"
+                    aria-expanded="${isExpanded}"
+                    aria-label="Toggle experience"
                   >
-                    ${escapeHtml(initials(candidate.full_name))}
-                  </div>
+                    <i
+                      class="fa-solid fa-chevron-down
+                             text-xs transition-transform
+                             duration-200
+                             ${isExpanded ? "rotate-180" : ""}"
+                    ></i>
+                  </button>
+                </td>
 
-                  <div class="min-w-0">
+                <td class="px-5 py-4 align-middle">
+                  <div class="flex items-center gap-3">
                     <div
-                      class="max-w-[190px] truncate
-                             text-sm font-bold text-slate-800"
+                      class="flex h-10 w-10 shrink-0
+                             items-center justify-center
+                             rounded-full bg-[#e0e7ff]
+                             text-xs font-bold text-[#4f46e5]"
                     >
                       ${escapeHtml(
-                        candidate.full_name || "LinkedIn Member"
+                        initials(candidate.full_name)
                       )}
                     </div>
 
-                    <div
-                      class="mt-1 text-xs font-medium text-slate-400"
-                    >
-                      Candidate profile
+                    <div class="min-w-0">
+                      <div
+                        class="max-w-[190px] truncate
+                               text-sm font-bold
+                               text-slate-800"
+                      >
+                        ${escapeHtml(
+                          candidate.full_name ||
+                          "LinkedIn Member"
+                        )}
+                      </div>
+
+                      <div class="mt-1">
+                        ${actionBadge(
+                          candidate.action_type
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
+                </td>
 
-              <td
-                class="max-w-[320px] px-5 py-4 align-top
-                       text-xs font-medium leading-relaxed
-                       text-slate-600"
-              >
-                ${escapeHtml(candidate.headline || "—")}
-              </td>
-
-              <td
-                class="px-5 py-4 align-top text-xs
-                       font-medium text-slate-600"
-              >
-                ${escapeHtml(candidate.location || "—")}
-              </td>
-
-              <td
-                class="px-5 py-4 align-top text-xs
-                       font-semibold text-slate-700"
-              >
-                ${escapeHtml(
-                  candidate.current_company_hint || "—"
-                )}
-              </td>
-
-              <td class="px-5 py-4 align-top">
-                <span
-                  class="inline-flex rounded-full px-3 py-1.5
-                         text-xs font-bold
-                         ${actionClass(candidate.action_type)}"
+                <td
+                  class="max-w-[320px] px-5 py-4
+                         align-middle"
                 >
-                  ${escapeHtml(candidate.action_type || "No action")}
-                </span>
-              </td>
+                  <div
+                    class="line-clamp-2 text-xs
+                           font-semibold leading-relaxed
+                           text-slate-600"
+                  >
+                    ${escapeHtml(currentPosition)}
+                  </div>
 
-              <td
-                class="px-5 py-4 align-top text-xs
-                       font-medium text-slate-500"
-              >
-                ${escapeHtml(formatDateTime(candidate.scanned_at))}
-              </td>
+                  ${
+                    dateRange
+                      ? `
+                        <div
+                          class="mt-1 text-[11px]
+                                 font-medium text-slate-400"
+                        >
+                          ${escapeHtml(dateRange)}
+                        </div>
+                      `
+                      : ""
+                  }
+                </td>
 
-              <td class="px-5 py-4 text-right align-top">
-                <a
-                  href="${escapeHtml(candidate.profile_url)}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex h-9 w-9 items-center
-                         justify-center rounded-xl
-                         bg-[#f4f5f8] text-[#0a66c2]
-                         transition hover:bg-blue-50"
-                  title="Open LinkedIn"
+                <td
+                  class="px-5 py-4 align-middle
+                         text-xs font-medium
+                         text-slate-600"
                 >
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-              </td>
-            </tr>
-          `;
-        })
-        .join("");
+                  <i
+                    class="fa-solid fa-location-dot
+                           mr-1.5 text-slate-300"
+                  ></i>
 
-      resultCount.textContent =
+                  ${escapeHtml(
+                    candidate.location || "—"
+                  )}
+                </td>
+
+                <td class="px-5 py-4 align-middle">
+                  <div
+                    class="max-w-[190px] truncate
+                           text-xs font-semibold
+                           text-slate-700"
+                  >
+                    ${escapeHtml(currentCompany)}
+                  </div>
+                </td>
+
+                <td class="px-5 py-4 align-middle">
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="flex h-8 w-8 items-center
+                             justify-center rounded-xl
+                             bg-indigo-50 text-xs
+                             font-bold text-indigo-500"
+                    >
+                      ${experienceCount}
+                    </div>
+
+                    <div>
+                      <div
+                        class="text-xs font-bold
+                               text-slate-700"
+                      >
+                        ${
+                          experienceCount === 1
+                            ? "1 position"
+                            : `${experienceCount} positions`
+                        }
+                      </div>
+
+                      <div
+                        class="mt-0.5 text-[11px]
+                               font-medium text-slate-400"
+                      >
+                        ${
+                          experiences.length > 0
+                            ? "Click to view"
+                            : "No details"
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="px-5 py-4 align-middle">
+                  ${statusBadge(
+                    candidate.experience_scan_status
+                  )}
+                </td>
+
+                <td
+                  class="px-5 py-4 text-right align-middle"
+                >
+                  <a
+                    href="${profileUrl}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-profile-link
+                    class="inline-flex h-9 w-9
+                           items-center justify-center
+                           rounded-xl bg-[#f4f5f8]
+                           text-[#0a66c2] transition
+                           hover:bg-blue-50"
+                    title="Open LinkedIn"
+                  >
+                    <i
+                      class="fa-solid
+                             fa-arrow-up-right-from-square"
+                    ></i>
+                  </a>
+                </td>
+              </tr>
+
+              <tr
+                data-experience-panel="${escapeHtml(candidateId)}"
+                class="${
+                  isExpanded ? "" : "hidden"
+                } border-b border-slate-100"
+              >
+                <td
+                  colspan="8"
+                  class="bg-[#f8f9fb] px-6 py-6"
+                >
+                  <div
+                    class="rounded-3xl border
+                           border-slate-200/70
+                           bg-[#ebedf3] p-1"
+                  >
+                    <div
+                      class="rounded-[20px]
+                             bg-white p-5 shadow-sm"
+                    >
+                      ${renderExperiencePanel(candidate)}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            `;
+          })
+          .join("");
+
+      elements.resultCount.textContent =
         `${candidates.length} candidates`;
 
-      emptyState.classList.toggle(
+      elements.emptyState.classList.toggle(
         "hidden",
         candidates.length > 0
       );
+
+      bindTableEvents();
     }
 
     function render() {
@@ -922,32 +1748,120 @@
       renderTable();
     }
 
+    function bindTableEvents() {
+      document
+        .querySelectorAll("[data-toggle-candidate]")
+        .forEach((button) => {
+          button.addEventListener(
+            "click",
+            (event) => {
+              event.stopPropagation();
+
+              const candidateId =
+                button.getAttribute(
+                  "data-toggle-candidate"
+                );
+
+              toggleExperience(candidateId);
+            }
+          );
+        });
+
+      document
+        .querySelectorAll("[data-candidate-row]")
+        .forEach((row) => {
+          row.addEventListener(
+            "click",
+            (event) => {
+              const clickedElement =
+                event.target;
+
+              if (
+                clickedElement.closest(
+                  "[data-profile-link]"
+                )
+              ) {
+                return;
+              }
+
+              const candidateId =
+                row.getAttribute(
+                  "data-candidate-row"
+                );
+
+              toggleExperience(candidateId);
+            }
+          );
+        });
+    }
+
+    function toggleExperience(candidateId) {
+      if (!candidateId) {
+        return;
+      }
+
+      if (
+        state.expandedIds.has(candidateId)
+      ) {
+        state.expandedIds.delete(candidateId);
+      } else {
+        state.expandedIds.add(candidateId);
+      }
+
+      renderTable();
+    }
+
     function sortCandidates() {
       state.candidates.sort(
-        (left, right) =>
-          new Date(right.scanned_at).getTime() -
-          new Date(left.scanned_at).getTime()
+        (left, right) => {
+          const leftDate = new Date(
+            left.experience_scanned_at ||
+            left.scanned_at ||
+            0
+          );
+
+          const rightDate = new Date(
+            right.experience_scanned_at ||
+            right.scanned_at ||
+            0
+          );
+
+          return (
+            rightDate.getTime() -
+            leftDate.getTime()
+          );
+        }
       );
     }
 
-    function mergeCandidate(candidate, highlight = false) {
+    function mergeCandidate(
+      candidate,
+      highlight = false
+    ) {
+      const candidateId =
+        String(candidate.id);
+
       const index =
         state.candidates.findIndex(
-          (item) => item.id === candidate.id
+          (item) =>
+            String(item.id) === candidateId
         );
 
       if (index >= 0) {
-        state.candidates[index] = candidate;
+        state.candidates[index] = {
+          ...state.candidates[index],
+          ...candidate
+        };
       } else {
         state.candidates.push(candidate);
       }
 
       if (highlight) {
-        state.highlightedIds.add(candidate.id);
+        state.highlightedIds.add(candidateId);
 
         window.setTimeout(() => {
-          state.highlightedIds.delete(candidate.id);
-          render();
+          state.highlightedIds.delete(candidateId);
+          renderTable();
         }, 2500);
       }
 
@@ -956,6 +1870,16 @@
     }
 
     async function loadCandidates() {
+      elements.resultCount.textContent =
+        "Loading candidates...";
+
+      elements.reloadButton.disabled = true;
+
+      elements.reloadButton.innerHTML = `
+        <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+        Loading
+      `;
+
       const { data, error } = await supabase
         .from("linkedin_candidates")
         .select(
@@ -967,51 +1891,83 @@
             "location",
             "current_company_hint",
             "action_type",
-            "scanned_at"
+            "scanned_at",
+            "experiences",
+            "experience_count",
+            "experience_scan_status",
+            "experience_scanned_at",
+            "experience_scan_error"
           ].join(",")
         )
         .order("scanned_at", {
           ascending: false
         });
 
+      elements.reloadButton.disabled = false;
+
+      elements.reloadButton.innerHTML = `
+        <i class="fa-solid fa-rotate mr-2"></i>
+        Refresh
+      `;
+
       if (error) {
         console.error(error);
-        resultCount.textContent = "Failed to load data";
+
+        elements.resultCount.textContent =
+          "Failed to load data";
+
         return;
       }
 
-      state.candidates = data ?? [];
+      state.candidates =
+        Array.isArray(data)
+          ? data
+          : [];
+
       sortCandidates();
       render();
     }
 
-    function setRealtimeState(isConnected, label) {
+    function setRealtimeState(
+      isConnected,
+      label
+    ) {
       if (isConnected) {
-        statusDot.className =
+        elements.statusDot.className =
           "realtime-dot h-2.5 w-2.5 rounded-full " +
           "bg-emerald-500 text-emerald-500";
 
-        sidebarStatusDot.className =
+        elements.sidebarStatusDot.className =
           "realtime-dot h-2.5 w-2.5 rounded-full " +
           "bg-emerald-500 text-emerald-500";
 
-        statusText.textContent = "Realtime connected";
-        sidebarStatusText.textContent = "Online";
-      } else {
-        statusDot.className =
-          "h-2.5 w-2.5 rounded-full bg-amber-400";
+        elements.statusText.textContent =
+          "Realtime connected";
 
-        sidebarStatusDot.className =
-          "h-2.5 w-2.5 rounded-full bg-amber-400";
+        elements.sidebarStatusText.textContent =
+          "Online";
 
-        statusText.textContent = label;
-        sidebarStatusText.textContent = label;
+        return;
       }
+
+      elements.statusDot.className =
+        "h-2.5 w-2.5 rounded-full bg-amber-400";
+
+      elements.sidebarStatusDot.className =
+        "h-2.5 w-2.5 rounded-full bg-amber-400";
+
+      elements.statusText.textContent =
+        label || "Connecting";
+
+      elements.sidebarStatusText.textContent =
+        label || "Connecting";
     }
 
     function subscribeRealtime() {
       supabase
-        .channel("linkedin-candidates-dashboard")
+        .channel(
+          "linkedin-candidates-dashboard"
+        )
         .on(
           "postgres_changes",
           {
@@ -1024,15 +1980,28 @@
               payload.eventType === "INSERT" ||
               payload.eventType === "UPDATE"
             ) {
-              mergeCandidate(payload.new, true);
+              mergeCandidate(
+                payload.new,
+                true
+              );
             }
 
-            if (payload.eventType === "DELETE") {
+            if (
+              payload.eventType === "DELETE"
+            ) {
+              const deletedId =
+                String(payload.old.id);
+
               state.candidates =
                 state.candidates.filter(
                   (candidate) =>
-                    candidate.id !== payload.old.id
+                    String(candidate.id) !==
+                    deletedId
                 );
+
+              state.expandedIds.delete(
+                deletedId
+              );
 
               render();
             }
@@ -1046,10 +2015,30 @@
         });
     }
 
-    searchInput.addEventListener("input", render);
-    actionFilter.addEventListener("change", render);
-    companyFilter.addEventListener("change", render);
-    reloadButton.addEventListener("click", loadCandidates);
+    elements.searchInput.addEventListener(
+      "input",
+      renderTable
+    );
+
+    elements.actionFilter.addEventListener(
+      "change",
+      renderTable
+    );
+
+    elements.experienceStatusFilter.addEventListener(
+      "change",
+      renderTable
+    );
+
+    elements.experienceCountFilter.addEventListener(
+      "change",
+      renderTable
+    );
+
+    elements.reloadButton.addEventListener(
+      "click",
+      loadCandidates
+    );
 
     await loadCandidates();
     subscribeRealtime();
