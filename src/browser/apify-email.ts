@@ -31,12 +31,30 @@ function normalizeEmail(value: unknown): string | null {
     : null;
 }
 
+function normalizeLinkedInUrl(value: string): string {
+  const url = new URL(
+    value,
+    "https://www.linkedin.com"
+  );
+
+  url.search = "";
+  url.hash = "";
+
+  return url
+    .toString()
+    .replace(/\/$/, "")
+    .toLowerCase();
+}
+
 function uniqueEmails(values: unknown[]): string[] {
   return [
     ...new Set(
       values
         .map(normalizeEmail)
-        .filter((email): email is string => Boolean(email))
+        .filter(
+          (email): email is string =>
+            Boolean(email)
+        )
     )
   ];
 }
@@ -87,11 +105,33 @@ export async function findEmailsWithApify(
     );
   }
 
+  const normalizedInputUrl =
+    normalizeLinkedInUrl(profileUrl);
+
   const endpoint =
     `https://api.apify.com/v2/actors/` +
     `${encodeURIComponent(actorId)}/` +
     `run-sync-get-dataset-items` +
     `?format=json&clean=true&timeout=300`;
+
+  const actorInput = {
+    includePersonalEmails: true,
+    includeWorkEmails: true,
+
+    linkedinUrls: [
+      profileUrl
+    ],
+
+    onlyWithEmails: true
+  };
+
+  console.log(
+    `[Apify] Actor: ${actorId}`
+  );
+
+  console.log(
+    `[Apify] Input URL: ${profileUrl}`
+  );
 
   const response = await fetch(
     endpoint,
@@ -99,13 +139,17 @@ export async function findEmailsWithApify(
       method: "POST",
 
       headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+        Authorization:
+          `Bearer ${token}`,
+
+        "Content-Type":
+          "application/json"
       },
 
-      body: JSON.stringify({
-        linkedin_url: profileUrl
-      }),
+      body:
+        JSON.stringify(
+          actorInput
+        ),
 
       signal:
         AbortSignal.timeout(
@@ -117,10 +161,14 @@ export async function findEmailsWithApify(
   const responseText =
     await response.text();
 
+  console.log(
+    `[Apify] HTTP status: ${response.status}`
+  );
+
   if (!response.ok) {
     throw new Error(
       `Apify request failed ${response.status}: ` +
-      responseText.slice(0, 500)
+      responseText.slice(0, 800)
     );
   }
 
@@ -128,24 +176,32 @@ export async function findEmailsWithApify(
 
   try {
     output =
-      JSON.parse(responseText);
+      JSON.parse(
+        responseText
+      );
   } catch {
     throw new Error(
       "Apify output không phải JSON."
     );
   }
 
-  const items =
-    Array.isArray(output)
-      ? output
-      : [];
+  if (!Array.isArray(output)) {
+    throw new Error(
+      "Apify output không phải dataset item array."
+    );
+  }
 
-  const result =
-    items[0] as
-      | ApifyEmailResult
-      | undefined;
+  console.log(
+    `[Apify] Output items: ${output.length}`
+  );
 
-  if (!result) {
+  const results =
+    output as ApifyEmailResult[];
+
+  if (
+    results.length ===
+    0
+  ) {
     return {
       emails: [],
       workEmail: null,
@@ -154,5 +210,51 @@ export async function findEmailsWithApify(
     };
   }
 
-  return parseResult(result);
+  /*
+    Chỉ nhận output có LinkedIn URL khớp với candidate.
+    Tránh đọc nhầm dữ liệu mẫu hoặc dữ liệu của profile khác.
+  */
+  const matchedResult =
+    results.find(
+      (item) => {
+        if (!item.linkedin_url) {
+          return false;
+        }
+
+        try {
+          return (
+            normalizeLinkedInUrl(
+              item.linkedin_url
+            ) ===
+            normalizedInputUrl
+          );
+        } catch {
+          return false;
+        }
+      }
+    );
+
+  if (!matchedResult) {
+    const returnedUrls =
+      results
+        .map(
+          (item) =>
+            item.linkedin_url
+        )
+        .filter(Boolean);
+
+    throw new Error(
+      `Apify output không khớp input URL. ` +
+      `Input: ${profileUrl}. ` +
+      `Output URLs: ${JSON.stringify(returnedUrls)}`
+    );
+  }
+
+  console.log(
+    `[Apify] Matched output: ${matchedResult.linkedin_url}`
+  );
+
+  return parseResult(
+    matchedResult
+  );
 }
