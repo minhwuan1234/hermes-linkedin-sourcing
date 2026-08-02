@@ -7,6 +7,9 @@
     "browser:open": "tsx src/browser/open-browser.ts",
     "supabase:test": "tsx src/browser/database/test-supabase.ts",
     "linkedin:scan": "tsx src/browser/scan-linkedin.ts"
+    "ui:dev": "tsx src/ui/server.ts",
+    "build": "tsc",
+    "start": "node dist/ui/server.js"
   },
   "dependencies": {
     "playwright": "^1.54.0"
