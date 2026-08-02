@@ -41,7 +41,10 @@ function normalizeText(
 }
 
 function normalizeProfileUrl(value: string): string {
-  const url = new URL(value, "https://www.linkedin.com");
+  const url = new URL(
+    value,
+    "https://www.linkedin.com"
+  );
 
   url.search = "";
   url.hash = "";
@@ -52,7 +55,9 @@ function normalizeProfileUrl(value: string): string {
 function extractCompanyHint(
   headline: string | null
 ): string | null {
-  if (!headline) return null;
+  if (!headline) {
+    return null;
+  }
 
   const patterns = [
     /\s+at\s+([^|•]+)/i,
@@ -122,7 +127,10 @@ async function applyLocationFilter(
   location: string
 ): Promise<void> {
   if (!location) {
-    console.log("[Location] Không sử dụng location filter.");
+    console.log(
+      "[Location] Không sử dụng location filter."
+    );
+
     return;
   }
 
@@ -156,8 +164,11 @@ async function applyLocationFilter(
 
   await page.waitForTimeout(2_000);
 
-  // Chọn suggestion đầu tiên bằng bàn phím.
-  // Không click theo text toàn trang để tránh mở nhầm profile.
+  /*
+   * Chọn suggestion bằng bàn phím.
+   * Không tìm text location trên toàn trang để tránh
+   * click nhầm profile ứng viên.
+   */
   await locationInput.press("ArrowDown");
   await page.waitForTimeout(300);
   await locationInput.press("Enter");
@@ -186,13 +197,19 @@ async function applyLocationFilter(
 
   await page.waitForTimeout(3_000);
 
-  if (!page.url().includes("/search/results/people")) {
+  if (
+    !page
+      .url()
+      .includes("/search/results/people")
+  ) {
     throw new Error(
       `Location filter chuyển sai trang: ${page.url()}`
     );
   }
 
-  console.log(`[Location] URL sau filter: ${page.url()}`);
+  console.log(
+    `[Location] URL sau filter: ${page.url()}`
+  );
 }
 
 async function getCardAction(
@@ -223,10 +240,9 @@ async function getCardAction(
 }
 
 async function getFullName(
-  profileLink: Locator,
-  card: Locator
+  profileLink: Locator
 ): Promise<string | null> {
-  const nameFromLink = normalizeText(
+  const spanText = normalizeText(
     await profileLink
       .locator("span[aria-hidden='true']")
       .first()
@@ -234,42 +250,73 @@ async function getFullName(
       .catch(() => null)
   );
 
-  if (nameFromLink) {
-    return nameFromLink
-      .replace(/\s*[·•]\s*(1st|2nd|3rd\+?).*$/i, "")
-      .trim();
-  }
-
-  const linkText = normalizeText(
-    await profileLink.textContent().catch(() => null)
+  const ariaLabel = normalizeText(
+    await profileLink
+      .getAttribute("aria-label")
+      .catch(() => null)
   );
 
-  if (linkText) {
-    return linkText
-      .replace(/\s*[·•]\s*(1st|2nd|3rd\+?).*$/i, "")
-      .trim();
-  }
-
-  return normalizeText(
-    await card
-      .locator("span[aria-hidden='true']")
-      .first()
+  const linkText = normalizeText(
+    await profileLink
       .textContent()
       .catch(() => null)
   );
-}
 
-async function extractCandidateFromCard(
-  card: Locator
-): Promise<Candidate | null> {
-  const profileLink = card
-    .locator('a[href*="/in/"]')
-    .first();
+  const rawName =
+    spanText ??
+    ariaLabel ??
+    linkText;
 
-  if ((await profileLink.count()) === 0) {
+  if (!rawName) {
     return null;
   }
 
+  const cleanedName = rawName
+    .replace(/^View\s+/i, "")
+    .replace(/['’]s profile$/i, "")
+    .replace(
+      /\s*[·•]\s*(1st|2nd|3rd\+?).*$/i,
+      ""
+    )
+    .trim();
+
+  return cleanedName || null;
+}
+
+async function getResultContainer(
+  profileLink: Locator
+): Promise<Locator> {
+  const knownContainer = profileLink.locator(
+    [
+      "xpath=ancestor::*[",
+      "self::li",
+      " or @data-chameleon-result-urn",
+      " or contains(@class, 'reusable-search__result-container')",
+      " or contains(@class, 'entity-result')",
+      "][1]"
+    ].join("")
+  );
+
+  if ((await knownContainer.count()) > 0) {
+    return knownContainer.first();
+  }
+
+  return profileLink.locator(
+    [
+      "xpath=ancestor::div[",
+      ".//a[contains(@href, '/in/')]",
+      " and (",
+      ".//button",
+      " or .//span",
+      ")",
+      "][1]"
+    ].join("")
+  );
+}
+
+async function extractCandidateFromProfileLink(
+  profileLink: Locator
+): Promise<Candidate | null> {
   const href = await profileLink.getAttribute("href");
 
   if (!href) {
@@ -277,37 +324,112 @@ async function extractCandidateFromCard(
   }
 
   const profileUrl = normalizeProfileUrl(href);
-  const fullName = await getFullName(profileLink, card);
+
+  if (
+    !profileUrl.includes(
+      "linkedin.com/in/"
+    )
+  ) {
+    return null;
+  }
+
+  const card = await getResultContainer(profileLink);
+
+  if ((await card.count()) === 0) {
+    console.log(
+      `[Skip] Không tìm thấy card cho ${profileUrl}`
+    );
+
+    return null;
+  }
+
+  const fullName =
+    await getFullName(profileLink);
 
   const rawLines = await card
-    .locator("span[aria-hidden='true'], p")
+    .locator(
+      "span[aria-hidden='true'], p, div"
+    )
     .allTextContents();
 
   const uniqueLines = [
     ...new Set(
       rawLines
-        .map((line) => normalizeText(line))
-        .filter((line): line is string => Boolean(line))
+        .map((line) =>
+          normalizeText(line)
+        )
+        .filter(
+          (line): line is string =>
+            Boolean(line)
+        )
     )
   ];
 
-  const cleanLines = uniqueLines.filter((line) => {
-    if (fullName && line === fullName) return false;
+  const cleanLines = uniqueLines.filter(
+    (line) => {
+      if (!line) {
+        return false;
+      }
 
-    if (
-      fullName &&
-      line.startsWith(`${fullName} ·`)
-    ) {
-      return false;
+      if (
+        fullName &&
+        line === fullName
+      ) {
+        return false;
+      }
+
+      if (
+        fullName &&
+        line.startsWith(
+          `${fullName} ·`
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        /^(1st|2nd|3rd\+?)$/i.test(
+          line
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        /^(Connect|Message|Follow|View)$/i.test(
+          line
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        /^(Past|Current|Education):/i.test(
+          line
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        /mutual connection/i.test(
+          line
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        /^\d+\s+connections?$/i.test(
+          line
+        )
+      ) {
+        return false;
+      }
+
+      return true;
     }
-
-    if (/^(1st|2nd|3rd\+?)$/i.test(line)) return false;
-    if (/^(Connect|Message|Follow|View)$/i.test(line)) return false;
-    if (/^(Past|Current|Education):/i.test(line)) return false;
-    if (/mutual connection/i.test(line)) return false;
-
-    return true;
-  });
+  );
 
   const location =
     cleanLines.find((line) =>
@@ -317,24 +439,96 @@ async function extractCandidateFromCard(
     ) ?? null;
 
   const headline =
-    cleanLines.find(
-      (line) =>
-        line !== location &&
-        !/^Skills:/i.test(line) &&
-        !/^Summary:/i.test(line)
-    ) ?? null;
+    cleanLines.find((line) => {
+      if (line === location) {
+        return false;
+      }
+
+      if (/^Skills:/i.test(line)) {
+        return false;
+      }
+
+      if (/^Summary:/i.test(line)) {
+        return false;
+      }
+
+      if (/^Past:/i.test(line)) {
+        return false;
+      }
+
+      if (/^Current:/i.test(line)) {
+        return false;
+      }
+
+      if (/^Education:/i.test(line)) {
+        return false;
+      }
+
+      if (
+        /connections?$/i.test(line)
+      ) {
+        return false;
+      }
+
+      if (line.length < 3) {
+        return false;
+      }
+
+      return true;
+    }) ?? null;
+
+  const normalizedHeadline =
+    normalizeText(headline);
 
   return {
     full_name: fullName,
     profile_url: profileUrl,
-    headline: normalizeText(headline),
+    headline: normalizedHeadline,
     location: normalizeText(location),
-    current_company_hint: extractCompanyHint(
-      normalizeText(headline)
-    ),
-    action_type: await getCardAction(card),
-    scanned_at: new Date().toISOString()
+    current_company_hint:
+      extractCompanyHint(
+        normalizedHeadline
+      ),
+    action_type:
+      await getCardAction(card),
+    scanned_at:
+      new Date().toISOString()
   };
+}
+
+async function scrollSearchResults(
+  page: Page
+): Promise<void> {
+  await page.evaluate(async () => {
+    const delay = (
+      milliseconds: number
+    ): Promise<void> =>
+      new Promise((resolve) => {
+        window.setTimeout(
+          resolve,
+          milliseconds
+        );
+      });
+
+    for (
+      let index = 0;
+      index < 8;
+      index += 1
+    ) {
+      window.scrollBy(
+        0,
+        Math.floor(
+          window.innerHeight * 0.75
+        )
+      );
+
+      await delay(500);
+    }
+
+    window.scrollTo(0, 0);
+  });
+
+  await page.waitForTimeout(2_000);
 }
 
 async function scanCurrentPage(
@@ -342,43 +536,97 @@ async function scanCurrentPage(
   pageNumber: number
 ): Promise<Candidate[]> {
   await page.waitForTimeout(3_000);
+  await scrollSearchResults(page);
 
-  const cards = page.locator(
-    'main li:has(a[href*="/in/"])'
+  const allProfileLinks = page.locator(
+    [
+      'main a[href*="/in/"]',
+      'div[role="main"] a[href*="/in/"]',
+      'a[href^="https://www.linkedin.com/in/"]'
+    ].join(", ")
   );
 
-  const cardCount = await cards.count();
+  const totalLinks =
+    await allProfileLinks.count();
 
   console.log(
-    `[Page ${pageNumber}] Tìm thấy ${cardCount} card có profile URL.`
+    `[Page ${pageNumber}] Tìm thấy ${totalLinks} link /in/.`
   );
 
   const candidates: Candidate[] = [];
-  const seenOnPage = new Set<string>();
+  const seenProfileUrls =
+    new Set<string>();
 
   for (
     let index = 0;
-    index < cardCount;
+    index < totalLinks;
     index += 1
   ) {
-    const candidate = await extractCandidateFromCard(
-      cards.nth(index)
-    );
+    const link =
+      allProfileLinks.nth(index);
 
-    if (!candidate) continue;
+    const href =
+      await link.getAttribute("href");
 
-    if (seenOnPage.has(candidate.profile_url)) {
+    if (!href) {
       continue;
     }
 
-    seenOnPage.add(candidate.profile_url);
+    const profileUrl =
+      normalizeProfileUrl(href);
+
+    if (
+      !profileUrl.includes(
+        "linkedin.com/in/"
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      seenProfileUrls.has(
+        profileUrl
+      )
+    ) {
+      continue;
+    }
+
+    const visible = await link
+      .isVisible()
+      .catch(() => false);
+
+    if (!visible) {
+      continue;
+    }
+
+    seenProfileUrls.add(profileUrl);
+
+    const candidate =
+      await extractCandidateFromProfileLink(
+        link
+      );
+
+    if (!candidate) {
+      continue;
+    }
+
     candidates.push(candidate);
 
     console.log(
-      `[Page ${pageNumber}] ${candidates.length}. ` +
-      `${candidate.full_name ?? "Không có tên"}`
+      [
+        `[Page ${pageNumber}]`,
+        `${candidates.length}.`,
+        candidate.full_name ??
+          "Không có tên",
+        "|",
+        candidate.profile_url
+      ].join(" ")
     );
   }
+
+  console.log(
+    `[Page ${pageNumber}] Đã extract ${candidates.length} ứng viên.`
+  );
 
   return candidates;
 }
@@ -389,9 +637,14 @@ async function goToSearchPage(
 ): Promise<void> {
   const url = new URL(page.url());
 
-  url.searchParams.set("page", String(pageNumber));
+  url.searchParams.set(
+    "page",
+    String(pageNumber)
+  );
 
-  console.log(`[Navigation] Đang mở trang ${pageNumber}...`);
+  console.log(
+    `[Navigation] Đang mở trang ${pageNumber}...`
+  );
 
   await page.goto(url.toString(), {
     waitUntil: "domcontentloaded",
@@ -403,8 +656,9 @@ async function goToSearchPage(
       currentUrl.pathname.includes(
         "/search/results/people"
       ) &&
-      currentUrl.searchParams.get("page") ===
-        String(pageNumber),
+      currentUrl.searchParams.get(
+        "page"
+      ) === String(pageNumber),
     {
       timeout: 30_000
     }
@@ -417,7 +671,10 @@ async function saveCandidates(
   candidates: Candidate[]
 ): Promise<void> {
   if (candidates.length === 0) {
-    console.log("[Supabase] Không có ứng viên để lưu.");
+    console.log(
+      "[Supabase] Không có ứng viên để lưu."
+    );
+
     return;
   }
 
@@ -439,8 +696,12 @@ async function saveCandidates(
 }
 
 async function main(): Promise<void> {
-  const keyword = getArgument("keyword");
-  const location = getArgument("location");
+  const keyword =
+    getArgument("keyword");
+
+  const location =
+    getArgument("location");
+
   const pagesToScan = Number(
     getArgument("pages") || "3"
   );
@@ -456,33 +717,48 @@ async function main(): Promise<void> {
     pagesToScan < 1 ||
     pagesToScan > 3
   ) {
-    throw new Error("--pages phải là số từ 1 đến 3.");
+    throw new Error(
+      "--pages phải là số từ 1 đến 3."
+    );
   }
 
-  let context: BrowserContext | null = null;
+  let context: BrowserContext | null =
+    null;
 
   try {
-    context = await chromium.launchPersistentContext(
-      profilePath,
-      {
-        channel: "chrome",
-        headless: false,
-        viewport: null,
-        args: [
-          "--start-maximized",
-          "--no-first-run",
-          "--no-default-browser-check"
-        ]
-      }
+    context =
+      await chromium.launchPersistentContext(
+        profilePath,
+        {
+          channel: "chrome",
+          headless: false,
+          viewport: null,
+          args: [
+            "--start-maximized",
+            "--no-first-run",
+            "--no-default-browser-check"
+          ]
+        }
+      );
+
+    const page =
+      await getSinglePage(context);
+
+    await openSearchPage(
+      page,
+      keyword
     );
 
-    const page = await getSinglePage(context);
+    await applyLocationFilter(
+      page,
+      location
+    );
 
-    await openSearchPage(page, keyword);
-    await applyLocationFilter(page, location);
+    const filteredSearchUrl =
+      page.url();
 
-    const filteredSearchUrl = page.url();
-    const allCandidates: Candidate[] = [];
+    const allCandidates:
+      Candidate[] = [];
 
     for (
       let pageNumber = 1;
@@ -490,63 +766,98 @@ async function main(): Promise<void> {
       pageNumber += 1
     ) {
       if (pageNumber === 1) {
-        const firstPageUrl = new URL(filteredSearchUrl);
-        firstPageUrl.searchParams.set("page", "1");
+        const firstPageUrl =
+          new URL(
+            filteredSearchUrl
+          );
 
-        await page.goto(firstPageUrl.toString(), {
-          waitUntil: "domcontentloaded",
-          timeout: 60_000
-        });
+        firstPageUrl.searchParams.set(
+          "page",
+          "1"
+        );
 
-        await page.waitForTimeout(3_000);
+        await page.goto(
+          firstPageUrl.toString(),
+          {
+            waitUntil:
+              "domcontentloaded",
+            timeout: 60_000
+          }
+        );
+
+        await page.waitForTimeout(
+          3_000
+        );
       } else {
-        await goToSearchPage(page, pageNumber);
+        await goToSearchPage(
+          page,
+          pageNumber
+        );
       }
 
-      console.log(`\nĐang scan trang ${pageNumber}...`);
-
-      const candidates = await scanCurrentPage(
-        page,
-        pageNumber
+      console.log(
+        `\nĐang scan trang ${pageNumber}...`
       );
 
-      allCandidates.push(...candidates);
+      const candidates =
+        await scanCurrentPage(
+          page,
+          pageNumber
+        );
+
+      allCandidates.push(
+        ...candidates
+      );
     }
 
-    const uniqueCandidates = Array.from(
-      new Map(
-        allCandidates.map((candidate) => [
-          candidate.profile_url,
-          candidate
-        ])
-      ).values()
-    );
+    const uniqueCandidates =
+      Array.from(
+        new Map(
+          allCandidates.map(
+            (candidate) => [
+              candidate.profile_url,
+              candidate
+            ]
+          )
+        ).values()
+      );
 
     console.log("");
     console.log(
       `Tổng card hợp lệ đọc được: ${allCandidates.length}`
     );
+
     console.log(
       `Tổng profile không trùng: ${uniqueCandidates.length}`
     );
 
-    await saveCandidates(uniqueCandidates);
+    await saveCandidates(
+      uniqueCandidates
+    );
 
-    console.log("Hoàn thành scan và lưu Supabase.");
+    console.log(
+      "Hoàn thành scan và lưu Supabase."
+    );
   } finally {
-    await context?.close().catch(() => undefined);
+    await context
+      ?.close()
+      .catch(() => undefined);
   }
 }
 
-main().catch((error: unknown) => {
-  console.error("\nScan LinkedIn thất bại:");
+main().catch(
+  (error: unknown) => {
+    console.error(
+      "\nScan LinkedIn thất bại:"
+    );
 
-  if (error instanceof Error) {
-    console.error(error.message);
-    console.error(error.stack);
-  } else {
-    console.error(error);
+    if (error instanceof Error) {
+      console.error(error.message);
+      console.error(error.stack);
+    } else {
+      console.error(error);
+    }
+
+    process.exit(1);
   }
-
-  process.exit(1);
-});
+);
