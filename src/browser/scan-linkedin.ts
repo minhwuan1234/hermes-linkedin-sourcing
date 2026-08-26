@@ -10,8 +10,9 @@ import {
 } from "playwright";
 
 import {
-  supabase
-} from "./database/supabase.js";
+  upsertCandidate,
+  updateCandidateByProfileUrl
+} from "../storage/github-json-store.js";
 
 import {
   findEmailsWithApify
