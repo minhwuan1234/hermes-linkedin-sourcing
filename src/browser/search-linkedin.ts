@@ -329,7 +329,7 @@ async function main(): Promise<void> {
   console.log("Đóng Chrome để kết thúc.");
 
   await new Promise<void>((resolve) => {
-    context.once("close", resolve);
+    context.once("close", () => resolve());
   });
 }
 
