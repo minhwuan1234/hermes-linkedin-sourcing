@@ -894,45 +894,6 @@ async function saveBasicCandidates(
   );
 }
 
-  const payload =
-    candidates.map(
-      (candidate) => ({
-        ...candidate,
-
-        experience_scan_status:
-          "pending" as ExperienceStatus,
-
-        email_scan_status:
-          "pending" as EmailStatus
-      })
-    );
-
-  const {
-    error
-  } =
-    await supabase
-      .from(
-        "linkedin_candidates"
-      )
-      .upsert(
-        payload,
-        {
-          onConflict:
-            "profile_url"
-        }
-      );
-
-  if (error) {
-    throw new Error(
-      `Không lưu được candidate cơ bản: ${error.message}`
-    );
-  }
-
-  console.log(
-    `[Supabase] Đã lưu ${candidates.length} candidate`
-  );
-}
-
 async function updateCandidate(
   profileUrl: string,
   values: Record<
@@ -940,27 +901,19 @@ async function updateCandidate(
     unknown
   >
 ): Promise<void> {
-  const {
-    error
-  } =
-    await supabase
-      .from(
-        "linkedin_candidates"
-      )
-      .update(
-        values
-      )
-      .eq(
-        "profile_url",
-        profileUrl
-      );
+  const updated =
+    updateCandidateByProfileUrl(
+      profileUrl,
+      values
+    );
 
-  if (error) {
+  if (!updated) {
     throw new Error(
-      `Không update được candidate: ${error.message}`
+      `Không tìm thấy candidate để update: ${profileUrl}`
     );
   }
 }
+
 
 async function openExperiencePage(
   page: Page,
