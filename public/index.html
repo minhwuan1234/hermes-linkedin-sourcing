@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
+
+  <title>Hermes LinkedIn Sourcing</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"
+  ></script>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      font-family:
+        Inter,
+        sans-serif;
+
+      color: #1e293b;
+      background: #f4f5f8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .shell {
+      border:
+        1px solid
+        rgb(203 213 225 / 65%);
+
+      background: #ebedf3;
+    }
+
+    .candidate-row {
+      transition:
+        background-color
+        160ms ease;
+    }
+
+    .candidate-row:hover {
+      background: #f8fafc;
+    }
+
+    .experience-line {
+      position: relative;
+      padding-left: 30px;
+    }
+
+    .experience-line::before {
+      content: "";
+
+      position: absolute;
+      top: 21px;
+      left: 5px;
+
+      width: 12px;
+      height: 12px;
+
+      border:
+        3px solid
+        #f4f5f8;
+
+      border-radius:
+        999px;
+
+      background:
+        #6366f1;
+    }
+
+    .table-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .table-scroll::-webkit-scrollbar-thumb {
+      border-radius:
+        999px;
+
+      background:
+        #cbd5e1;
+    }
+  </style>
+</head>
+
+<body>
+  <main
+    class="mx-auto max-w-[1600px] p-5 md:p-8"
+  >
+    <header
+      class="mb-7 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+    >
+      <div>
+        <h1
+          class="text-2xl font-bold text-slate-800"
+        >
+          Candidate Dashboard
+        </h1>
+
+        <p
+          class="mt-1 text-sm font-medium text-slate-400"
+        >
+          LinkedIn profile, experience và email enrichment
+        </p>
+      </div>
+
+      <div
+        class="flex items-center gap-3"
+      >
+        <div
+          id="realtimeStatus"
+          class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-500 shadow-sm"
+        >
+          Connecting realtime
+        </div>
+
+        <button
+          id="reloadButton"
+          type="button"
+          class="rounded-2xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white"
+        >
+          <i
+            class="fa-solid fa-rotate mr-2"
+          ></i>
+
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <section
+      class="mb-7 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+    >
+      <article
+        class="shell rounded-3xl p-1"
+      >
+        <div
+          class="rounded-[20px] bg-white p-5"
+        >
+          <div
+            class="text-[11px] font-bold uppercase tracking-wide text-slate-400"
+          >
+            Candidates
+          </div>
+
+          <div
+            id="totalCandidates"
+            class="mt-2 text-3xl font-bold"
+          >
+            0
+          </div>
+        </div>
+      </article>
+
+      <article
+        class="shell rounded-3xl p-1"
+      >
+        <div
+          class="rounded-[20px] bg-white p-5"
+        >
+          <div
+            class="text-[11px] font-bold uppercase tracking-wide text-slate-400"
+          >
+            Experience completed
+          </div>
+
+          <div
+            id="experienceCompleted"
+            class="mt-2 text-3xl font-bold"
+          >
+            0
+          </div>
+        </div>
+      </article>
+
+      <article
+        class="shell rounded-3xl p-1"
+      >
+        <div
+          class="rounded-[20px] bg-white p-5"
+        >
+          <div
+            class="text-[11px] font-bold uppercase tracking-wide text-slate-400"
+          >
+            Candidates with email
+          </div>
+
+          <div
+            id="candidatesWithEmail"
+            class="mt-2 text-3xl font-bold"
+          >
+            0
+          </div>
+        </div>
+      </article>
+
+      <article
+        class="shell rounded-3xl p-1"
+      >
+        <div
+          class="rounded-[20px] bg-white p-5"
+        >
+          <div
+            class="text-[11px] font-bold uppercase tracking-wide text-slate-400"
+          >
+            Total emails
+          </div>
+
+          <div
+            id="totalEmails"
+            class="mt-2 text-3xl font-bold"
+          >
+            0
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section
+      class="mb-5 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row"
+    >
+      <div
+        class="relative flex-1"
+      >
+        <i
+          class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
+        ></i>
+
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Tìm tên, công ty, vị trí hoặc email..."
+          class="w-full rounded-2xl border border-slate-200 bg-[#f8f9fb] py-3 pl-11 pr-4 text-sm outline-none"
+        />
+      </div>
+
+      <select
+        id="experienceFilter"
+        class="rounded-2xl border border-slate-200 bg-[#f8f9fb] px-4 py-3 text-sm font-semibold text-slate-600"
+      >
+        <option value="">
+          All experience statuses
+        </option>
+
+        <option value="completed">
+          Completed
+        </option>
+
+        <option value="scanning">
+          Scanning
+        </option>
+
+        <option value="pending">
+          Pending
+        </option>
+
+        <option value="failed">
+          Failed
+        </option>
+      </select>
+
+      <select
+        id="emailFilter"
+        class="rounded-2xl border border-slate-200 bg-[#f8f9fb] px-4 py-3 text-sm font-semibold text-slate-600"
+      >
+        <option value="">
+          All email statuses
+        </option>
+
+        <option value="completed">
+          Email found
+        </option>
+
+        <option value="not_found">
+          Not found
+        </option>
+
+        <option value="scanning">
+          Finding
+        </option>
+
+        <option value="pending">
+          Pending
+        </option>
+
+        <option value="failed">
+          Failed
+        </option>
+      </select>
+    </section>
+
+    <section
+      class="shell overflow-hidden rounded-3xl p-1"
+    >
+      <div
+        class="rounded-[22px] bg-white"
+      >
+        <div
+          class="border-b border-slate-100 px-5 py-5"
+        >
+          <h2
+            class="text-sm font-bold"
+          >
+            Candidate database
+          </h2>
+
+          <p
+            id="resultCount"
+            class="mt-1 text-xs font-medium text-slate-400"
+          >
+            0 candidates
+          </p>
+        </div>
+
+        <div
+          class="table-scroll overflow-auto"
+        >
+          <table
+            class="w-full min-w-[1450px] border-collapse"
+          >
+            <thead>
+              <tr
+                class="bg-[#f8f9fb] text-left text-[11px] font-bold uppercase tracking-wide text-slate-400"
+              >
+                <th
+                  class="w-12 px-5 py-3"
+                ></th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Candidate
+                </th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Current position
+                </th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Location
+                </th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Experience
+                </th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Emails
+                </th>
+
+                <th
+                  class="px-5 py-3"
+                >
+                  Email status
+                </th>
+
+                <th
+                  class="px-5 py-3 text-right"
+                >
+                  Profile
+                </th>
+              </tr>
+            </thead>
+
+            <tbody
+              id="candidateRows"
+            ></tbody>
+          </table>
+
+          <div
+            id="emptyState"
+            class="hidden px-8 py-20 text-center text-sm text-slate-400"
+          >
+            Không có ứng viên phù hợp.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/config.js"></script>
+
+  <script type="module">
+    import {
+      createClient
+    } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const config =
+      window.APP_CONFIG ?? {};
+
+    const supabase =
+      createClient(
+        config.supabaseUrl,
+        config.supabaseAnonKey
+      );
+
+    const state = {
+      candidates: [],
+      expandedIds:
+        new Set()
+    };
+
+    const $ =
+      (selector) =>
+        document.querySelector(
+          selector
+        );
+
+    function escapeHtml(
+      value
+    ) {
+      return String(
+        value ?? ""
+      )
+        .replaceAll(
+          "&",
+          "&amp;"
+        )
+        .replaceAll(
+          "<",
+          "&lt;"
+        )
+        .replaceAll(
+          ">",
+          "&gt;"
+        )
+        .replaceAll(
+          '"',
+          "&quot;"
+        )
+        .replaceAll(
+          "'",
+          "&#039;"
+        );
+    }
+
+    function normalizeArray(
+      value
+    ) {
+      if (
+        Array.isArray(
+          value
+        )
+      ) {
+        return value;
+      }
+
+      if (
+        typeof value ===
+        "string"
+      ) {
+        try {
+          const parsed =
+            JSON.parse(
+              value
+            );
+
+          return Array.isArray(
+            parsed
+          )
+            ? parsed
+            : [];
+        } catch {
+          return value.trim()
+            ? [
+                value.trim()
+              ]
+            : [];
+        }
+      }
+
+      return [];
+    }
+
+    function initials(
+      name
+    ) {
+      return String(
+        name ||
+        "LinkedIn Member"
+      )
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(
+          (part) =>
+            part[0]
+              ?.toUpperCase()
+        )
+        .join("");
+    }
+
+    function badge(
+      status,
+      type
+    ) {
+      const maps = {
+        experience: {
+          completed: [
+            "Completed",
+            "bg-emerald-50 text-emerald-600"
+          ],
+
+          scanning: [
+            "Scanning",
+            "bg-blue-50 text-blue-600"
+          ],
+
+          pending: [
+            "Pending",
+            "bg-amber-50 text-amber-600"
+          ],
+
+          failed: [
+            "Failed",
+            "bg-red-50 text-red-500"
+          ]
+        },
+
+        email: {
+          completed: [
+            "Found",
+            "bg-emerald-50 text-emerald-600"
+          ],
+
+          scanning: [
+            "Finding",
+            "bg-blue-50 text-blue-600"
+          ],
+
+          pending: [
+            "Pending",
+            "bg-amber-50 text-amber-600"
+          ],
+
+          not_found: [
+            "Not found",
+            "bg-slate-100 text-slate-500"
+          ],
+
+          failed: [
+            "Failed",
+            "bg-red-50 text-red-500"
+          ]
+        }
+      };
+
+      const [
+        label,
+        className
+      ] =
+        maps[type][status] ??
+        maps[type].pending;
+
+      return `
+        <span
+          class="inline-flex rounded-full px-2.5 py-1.5 text-[11px] font-bold ${className}"
+        >
+          ${label}
+        </span>
+      `;
+    }
+
+    function searchableText(
+      candidate
+    ) {
+      const experiences =
+        normalizeArray(
+          candidate.experiences
+        );
+
+      const emails =
+        normalizeArray(
+          candidate.emails
+        );
+
+      return [
+        candidate.full_name,
+        candidate.headline,
+        candidate.location,
+        candidate.current_company_hint,
+
+        ...emails,
+
+        ...experiences.flatMap(
+          (experience) => [
+            experience.job_title,
+            experience.company_name,
+            experience.location,
+            experience.description
+          ]
+        )
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+    }
+
+    function filteredCandidates() {
+      const query =
+        $("#searchInput")
+          .value
+          .trim()
+          .toLowerCase();
+
+      const experienceStatus =
+        $("#experienceFilter")
+          .value;
+
+      const emailStatus =
+        $("#emailFilter")
+          .value;
+
+      return state.candidates.filter(
+        (candidate) => {
+          if (
+            experienceStatus &&
+            candidate.experience_scan_status !==
+              experienceStatus
+          ) {
+            return false;
+          }
+
+          if (
+            emailStatus &&
+            candidate.email_scan_status !==
+              emailStatus
+          ) {
+            return false;
+          }
+
+          return (
+            !query ||
+            searchableText(
+              candidate
+            ).includes(
+              query
+            )
+          );
+        }
+      );
+    }
+
+    function renderEmailList(
+      candidate
+    ) {
+      const emails =
+        normalizeArray(
+          candidate.emails
+        );
+
+      const workEmail =
+        String(
+          candidate.work_email ??
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      if (
+        emails.length ===
+        0
+      ) {
+        return `
+          <span
+            class="text-xs text-slate-400"
+          >
+            —
+          </span>
+        `;
+      }
+
+      return `
+        <div
+          class="min-w-[240px] space-y-1.5"
+        >
+          ${emails
+            .map(
+              (email) => {
+                const normalized =
+                  String(
+                    email
+                  ).toLowerCase();
+
+                const isWork =
+                  normalized ===
+                  workEmail;
+
+                return `
+                  <div
+                    class="flex items-center gap-2"
+                  >
+                    <a
+                      href="mailto:${escapeHtml(email)}"
+                      class="max-w-[210px] truncate text-xs font-bold text-[#0a66c2]"
+                      onclick="event.stopPropagation()"
+                    >
+                      ${escapeHtml(email)}
+                    </a>
+
+                    <span
+                      class="rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                        isWork
+                          ? "bg-indigo-50 text-indigo-500"
+                          : "bg-slate-100 text-slate-500"
+                      }"
+                    >
+                      ${isWork ? "WORK" : "OTHER"}
+                    </span>
+                  </div>
+                `;
+              }
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    function renderExperiencePanel(
+      candidate
+    ) {
+      const experiences =
+        normalizeArray(
+          candidate.experiences
+        );
+
+      if (
+        experiences.length ===
+        0
+      ) {
+        return `
+          <div
+            class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-400"
+          >
+            Chưa có experience.
+          </div>
+        `;
+      }
+
+      return `
+        <div
+          class="space-y-4"
+        >
+          ${experiences
+            .map(
+              (
+                experience,
+                index
+              ) => `
+                <article
+                  class="experience-line"
+                >
+                  <div
+                    class="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
+                    <div
+                      class="flex flex-col gap-3 md:flex-row md:justify-between"
+                    >
+                      <div>
+                        <div
+                          class="text-[10px] font-bold uppercase tracking-wide text-indigo-500"
+                        >
+                          Experience ${index + 1}
+                        </div>
+
+                        <h4
+                          class="mt-1 text-sm font-bold text-slate-800"
+                        >
+                          ${escapeHtml(
+                            experience.job_title ||
+                            "Unknown position"
+                          )}
+                        </h4>
+
+                        <p
+                          class="mt-1 text-xs font-semibold text-slate-500"
+                        >
+                          ${escapeHtml(
+                            experience.company_name ||
+                            "Unknown company"
+                          )}
+                        </p>
+                      </div>
+
+                      <div
+                        class="rounded-xl bg-[#f4f5f8] px-3 py-2 text-xs font-bold text-slate-600"
+                      >
+                        ${escapeHtml(
+                          experience.date_range_text ||
+                          "—"
+                        )}
+                      </div>
+                    </div>
+
+                    ${
+                      experience.description
+                        ? `
+                          <p
+                            class="mt-4 whitespace-pre-line border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500"
+                          >
+                            ${escapeHtml(
+                              experience.description
+                            )}
+                          </p>
+                        `
+                        : ""
+                    }
+                  </div>
+                </article>
+              `
+            )
+            .join("")}
+        </div>
+      `;
+    }
+
+    function renderSummary() {
+      $("#totalCandidates")
+        .textContent =
+        String(
+          state.candidates.length
+        );
+
+      $("#experienceCompleted")
+        .textContent =
+        String(
+          state.candidates.filter(
+            (candidate) =>
+              candidate.experience_scan_status ===
+              "completed"
+          ).length
+        );
+
+      $("#candidatesWithEmail")
+        .textContent =
+        String(
+          state.candidates.filter(
+            (candidate) =>
+              normalizeArray(
+                candidate.emails
+              ).length >
+              0
+          ).length
+        );
+
+      $("#totalEmails")
+        .textContent =
+        String(
+          state.candidates.reduce(
+            (
+              total,
+              candidate
+            ) =>
+              total +
+              normalizeArray(
+                candidate.emails
+              ).length,
+
+            0
+          )
+        );
+    }
+
+    function renderTable() {
+      const candidates =
+        filteredCandidates();
+
+      $("#candidateRows")
+        .innerHTML =
+        candidates
+          .map(
+            (candidate) => {
+              const id =
+                String(
+                  candidate.id
+                );
+
+              const isExpanded =
+                state.expandedIds.has(
+                  id
+                );
+
+              const experiences =
+                normalizeArray(
+                  candidate.experiences
+                );
+
+              const current =
+                experiences[0] ??
+                null;
+
+              return `
+                <tr
+                  data-row="${escapeHtml(id)}"
+                  class="candidate-row cursor-pointer border-b border-slate-100"
+                >
+                  <td
+                    class="px-5 py-4"
+                  >
+                    <button
+                      type="button"
+                      data-toggle="${escapeHtml(id)}"
+                      class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f4f5f8] text-slate-400"
+                    >
+                      <i
+                        class="fa-solid fa-chevron-down text-xs ${
+                          isExpanded
+                            ? "rotate-180"
+                            : ""
+                        }"
+                      ></i>
+                    </button>
+                  </td>
+
+                  <td
+                    class="px-5 py-4"
+                  >
+                    <div
+                      class="flex items-center gap-3"
+                    >
+                      <div
+                        class="flex h-10 w-10 items-center justify-center rounded-full bg-[#e0e7ff] text-xs font-bold text-[#4f46e5]"
+                      >
+                        ${escapeHtml(
+                          initials(
+                            candidate.full_name
+                          )
+                        )}
+                      </div>
+
+                      <div>
+                        <div
+                          class="max-w-[190px] truncate text-sm font-bold"
+                        >
+                          ${escapeHtml(
+                            candidate.full_name ||
+                            "LinkedIn Member"
+                          )}
+                        </div>
+
+                        <div
+                          class="mt-1 text-[11px] text-slate-400"
+                        >
+                          ${escapeHtml(
+                            candidate.action_type ||
+                            "Candidate"
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td
+                    class="max-w-[320px] px-5 py-4 text-xs font-semibold text-slate-600"
+                  >
+                    ${escapeHtml(
+                      current?.job_title ||
+                      candidate.headline ||
+                      "—"
+                    )}
+                  </td>
+
+                  <td
+                    class="px-5 py-4 text-xs text-slate-600"
+                  >
+                    ${escapeHtml(
+                      candidate.location ||
+                      "—"
+                    )}
+                  </td>
+
+                  <td
+                    class="px-5 py-4"
+                  >
+                    <div
+                      class="mb-2"
+                    >
+                      ${badge(
+                        candidate.experience_scan_status,
+                        "experience"
+                      )}
+                    </div>
+
+                    <div
+                      class="text-xs font-bold text-slate-700"
+                    >
+                      ${experiences.length} position
+                    </div>
+                  </td>
+
+                  <td
+                    class="px-5 py-4"
+                  >
+                    ${renderEmailList(candidate)}
+                  </td>
+
+                  <td
+                    class="px-5 py-4"
+                  >
+                    ${badge(
+                      candidate.email_scan_status,
+                      "email"
+                    )}
+                  </td>
+
+                  <td
+                    class="px-5 py-4 text-right"
+                  >
+                    <a
+                      href="${escapeHtml(candidate.profile_url)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onclick="event.stopPropagation()"
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f4f5f8] text-[#0a66c2]"
+                    >
+                      <i
+                        class="fa-solid fa-arrow-up-right-from-square"
+                      ></i>
+                    </a>
+                  </td>
+                </tr>
+
+                <tr
+                  class="${
+                    isExpanded
+                      ? ""
+                      : "hidden"
+                  } border-b border-slate-100"
+                >
+                  <td
+                    colspan="8"
+                    class="bg-[#f8f9fb] px-6 py-6"
+                  >
+                    <div
+                      class="shell rounded-3xl p-1"
+                    >
+                      <div
+                        class="rounded-[20px] bg-white p-5"
+                      >
+                        ${renderExperiencePanel(candidate)}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }
+          )
+          .join("");
+
+      $("#resultCount")
+        .textContent =
+        `${candidates.length} candidates`;
+
+      $("#emptyState")
+        .classList.toggle(
+          "hidden",
+          candidates.length >
+          0
+        );
+
+      document
+        .querySelectorAll(
+          "[data-toggle]"
+        )
+        .forEach(
+          (button) => {
+            button.addEventListener(
+              "click",
+              (event) => {
+                event.stopPropagation();
+
+                toggle(
+                  button.getAttribute(
+                    "data-toggle"
+                  )
+                );
+              }
+            );
+          }
+        );
+
+      document
+        .querySelectorAll(
+          "[data-row]"
+        )
+        .forEach(
+          (row) => {
+            row.addEventListener(
+              "click",
+              () => {
+                toggle(
+                  row.getAttribute(
+                    "data-row"
+                  )
+                );
+              }
+            );
+          }
+        );
+    }
+
+    function toggle(
+      id
+    ) {
+      if (!id) {
+        return;
+      }
+
+      if (
+        state.expandedIds.has(
+          id
+        )
+      ) {
+        state.expandedIds.delete(
+          id
+        );
+      } else {
+        state.expandedIds.add(
+          id
+        );
+      }
+
+      renderTable();
+    }
+
+    function render() {
+      renderSummary();
+      renderTable();
+    }
+
+    async function loadCandidates() {
+      $("#resultCount")
+        .textContent =
+        "Loading candidates...";
+
+      const {
+        data,
+        error
+      } =
+        await supabase
+          .from(
+            "linkedin_candidates"
+          )
+          .select(
+            [
+              "id",
+              "full_name",
+              "profile_url",
+              "headline",
+              "location",
+              "current_company_hint",
+              "action_type",
+              "scanned_at",
+
+              "experiences",
+              "experience_count",
+              "experience_scan_status",
+              "experience_scanned_at",
+              "experience_scan_error",
+
+              "emails",
+              "work_email",
+              "personal_emails",
+              "email_count",
+              "email_source",
+              "email_scan_status",
+              "email_checked_at",
+              "email_scan_error"
+            ].join(",")
+          )
+          .order(
+            "scanned_at",
+            {
+              ascending:
+                false
+            }
+          );
+
+      if (error) {
+        console.error(
+          error
+        );
+
+        $("#resultCount")
+          .textContent =
+          "Failed to load data";
+
+        return;
+      }
+
+      state.candidates =
+        data ?? [];
+
+      render();
+    }
+
+    function subscribeRealtime() {
+      supabase
+        .channel(
+          "linkedin-candidates-dashboard"
+        )
+        .on(
+          "postgres_changes",
+          {
+            event:
+              "*",
+
+            schema:
+              "public",
+
+            table:
+              "linkedin_candidates"
+          },
+
+          () => {
+            loadCandidates();
+          }
+        )
+        .subscribe(
+          (status) => {
+            $("#realtimeStatus")
+              .textContent =
+              status ===
+              "SUBSCRIBED"
+                ? "Realtime connected"
+                : status;
+          }
+        );
+    }
+
+    $("#searchInput")
+      .addEventListener(
+        "input",
+        renderTable
+      );
+
+    $("#experienceFilter")
+      .addEventListener(
+        "change",
+        renderTable
+      );
+
+    $("#emailFilter")
+      .addEventListener(
+        "change",
+        renderTable
+      );
+
+    $("#reloadButton")
+      .addEventListener(
+        "click",
+        loadCandidates
+      );
+
+    await loadCandidates();
+
+    subscribeRealtime();
+  </script>
+</body>
+</html>
