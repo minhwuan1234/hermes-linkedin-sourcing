@@ -873,12 +873,26 @@ async function scanCurrentPage(
 async function saveBasicCandidates(
   candidates: Candidate[]
 ): Promise<void> {
-  if (
-    candidates.length ===
-    0
-  ) {
+  if (candidates.length === 0) {
     return;
   }
+
+  for (const candidate of candidates) {
+    upsertCandidate({
+      ...candidate,
+
+      experience_scan_status:
+        "pending" as ExperienceStatus,
+
+      email_scan_status:
+        "pending" as EmailStatus
+    });
+  }
+
+  console.log(
+    `[JSON] Đã lưu ${candidates.length} candidate`
+  );
+}
 
   const payload =
     candidates.map(
