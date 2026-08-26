@@ -752,32 +752,71 @@ async function scrollSearchResults(
   );
 }
 
+async function isMutualConnectionProfileLink(
+  profileLink: Locator
+): Promise<boolean> {
+  return profileLink.evaluate(
+    (element) => {
+      let current:
+        HTMLElement | null =
+          element.parentElement;
+
+      for (
+        let depth = 0;
+        current && depth < 4;
+        depth += 1
+      ) {
+        if (
+          current.matches(
+            "li, [data-chameleon-result-urn], .reusable-search__result-container, .entity-result"
+          )
+        ) {
+          break;
+        }
+
+        const text =
+          current.innerText
+            ?.replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase() ?? "";
+
+        if (
+          text.includes(
+            "mutual connection"
+          )
+        ) {
+          return true;
+        }
+
+        current =
+          current.parentElement;
+      }
+
+      return false;
+    }
+  );
+}
+
 async function scanCurrentPage(
   page: Page,
   pageNumber: number
 ): Promise<Candidate[]> {
   await page.waitForTimeout(
-    2_000
+    3_000
   );
 
   await scrollSearchResults(
     page
   );
 
-  /*
-   * Keep the original ZIP search logic:
-   * iterate LinkedIn result cards, not every /in/ link on the page.
-   * The first /in/ link in each result card is the actual candidate.
-   * Mutual connection profile links appear later inside the same card
-   * and are therefore ignored.
-   */
-  const cards =
+  const links =
     page.locator(
-      'main li:has(a[href*="/in/"])'
+      [
+        'main a[href*="/in/"]',
+        'div[role="main"] a[href*="/in/"]',
+        'a[href^="https://www.linkedin.com/in/"]'
+      ].join(", ")
     );
-
-  const count =
-    await cards.count();
 
   const candidates:
     Candidate[] = [];
@@ -785,9 +824,12 @@ async function scanCurrentPage(
   const seen =
     new Set<string>();
 
+  const count =
+    await links.count();
+
   console.log(
     `[Page ${pageNumber}] ` +
-    `${count} card tiềm năng`
+    `${count} link tiềm năng`
   );
 
   for (
@@ -795,11 +837,13 @@ async function scanCurrentPage(
     index < count;
     index += 1
   ) {
-    const card =
-      cards.nth(index);
+    const link =
+      links.nth(
+        index
+      );
 
     const visible =
-      await card
+      await link
         .isVisible()
         .catch(
           () => false
@@ -809,25 +853,19 @@ async function scanCurrentPage(
       continue;
     }
 
-    const profileLink =
-      card
-        .locator(
-          'a[href*="/in/"]'
-        )
-        .first();
+    const isMutualConnection =
+      await isMutualConnectionProfileLink(
+        link
+      );
 
-    if (
-      await profileLink.count() ===
-      0
-    ) {
+    if (isMutualConnection) {
       continue;
     }
 
     const href =
-      await profileLink
-        .getAttribute(
-          "href"
-        );
+      await link.getAttribute(
+        "href"
+      );
 
     if (!href) {
       continue;
@@ -854,18 +892,18 @@ async function scanCurrentPage(
       continue;
     }
 
+    seen.add(
+      profileUrl
+    );
+
     const candidate =
       await extractCandidateFromProfileLink(
-        profileLink
+        link
       );
 
     if (!candidate) {
       continue;
     }
-
-    seen.add(
-      profileUrl
-    );
 
     candidates.push(
       candidate
@@ -889,7 +927,10 @@ async function scanCurrentPage(
 async function saveBasicCandidates(
   candidates: Candidate[]
 ): Promise<void> {
-  if (candidates.length === 0) {
+  if (
+    candidates.length ===
+    0
+  ) {
     return;
   }
 
@@ -929,7 +970,6 @@ async function updateCandidate(
     );
   }
 }
-
 
 async function openExperiencePage(
   page: Page,
