@@ -1706,7 +1706,7 @@ async function main(): Promise<void> {
     Number(
       getArgument(
         "pages"
-      ) || "3"
+      ) || "5"
     );
 
   const profileLimit =
@@ -1729,10 +1729,10 @@ async function main(): Promise<void> {
     pagesToScan <
       1 ||
     pagesToScan >
-      3
+      5
   ) {
     throw new Error(
-      "--pages phải là số từ 1 đến 3."
+      "--pages phải là số từ 1 đến 5."
     );
   }
 
