@@ -1701,7 +1701,7 @@ async function main(): Promise<void> {
     Number(
       getArgument(
         "pages"
-      ) || "3"
+      ) || "5"
     );
 
   const profileLimit =
