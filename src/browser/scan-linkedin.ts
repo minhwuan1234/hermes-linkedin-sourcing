@@ -757,39 +757,28 @@ async function isMutualConnectionProfileLink(
 ): Promise<boolean> {
   return profileLink.evaluate(
     (element) => {
-      let current:
-        HTMLElement | null =
-          element.parentElement;
+      let current: HTMLElement | null =
+        element.parentElement;
 
-      for (
-        let depth = 0;
-        current && depth < 4;
-        depth += 1
-      ) {
-        if (
-          current.matches(
-            "li, [data-chameleon-result-urn], .reusable-search__result-container, .entity-result"
-          )
-        ) {
-          break;
-        }
-
+      /*
+       * Only inspect wrappers immediately around THIS link.
+       * Do not climb to the whole search-result card because the
+       * card may contain a separate mutual-connection row.
+       */
+      for (let depth = 0; current && depth < 2; depth += 1) {
         const text =
           current.innerText
             ?.replace(/\s+/g, " ")
-            .trim()
-            .toLowerCase() ?? "";
+            .trim() ?? "";
 
         if (
-          text.includes(
-            "mutual connection"
-          )
+          text.length <= 220 &&
+          /\bis a mutual connections?\b/i.test(text)
         ) {
           return true;
         }
 
-        current =
-          current.parentElement;
+        current = current.parentElement;
       }
 
       return false;
@@ -927,10 +916,7 @@ async function scanCurrentPage(
 async function saveBasicCandidates(
   candidates: Candidate[]
 ): Promise<void> {
-  if (
-    candidates.length ===
-    0
-  ) {
+  if (candidates.length === 0) {
     return;
   }
 
@@ -970,6 +956,7 @@ async function updateCandidate(
     );
   }
 }
+
 
 async function openExperiencePage(
   page: Page,
