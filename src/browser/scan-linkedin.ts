@@ -914,7 +914,8 @@ async function scanCurrentPage(
 }
 
 async function saveBasicCandidates(
-  candidates: Candidate[]
+  candidates: Candidate[],
+  searchKeyword: string
 ): Promise<void> {
   if (candidates.length === 0) {
     return;
@@ -923,6 +924,9 @@ async function saveBasicCandidates(
   for (const candidate of candidates) {
     upsertCandidate({
       ...candidate,
+
+      search_keyword:
+        searchKeyword,
 
       experience_scan_status:
         "pending" as ExperienceStatus,
@@ -936,6 +940,7 @@ async function saveBasicCandidates(
     `[JSON] Đã lưu ${candidates.length} candidate`
   );
 }
+
 
 async function updateCandidate(
   profileUrl: string,
@@ -1701,7 +1706,7 @@ async function main(): Promise<void> {
     Number(
       getArgument(
         "pages"
-      ) || "5"
+      ) || "3"
     );
 
   const profileLimit =
@@ -1724,7 +1729,7 @@ async function main(): Promise<void> {
     pagesToScan <
       1 ||
     pagesToScan >
-      5
+      3
   ) {
     throw new Error(
       "--pages phải là số từ 1 đến 3."
@@ -1829,7 +1834,8 @@ async function main(): Promise<void> {
         );
 
       await saveBasicCandidates(
-        candidates
+        candidates,
+        keyword
       );
 
       for (
