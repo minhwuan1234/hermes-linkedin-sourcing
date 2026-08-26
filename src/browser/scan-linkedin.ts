@@ -529,6 +529,100 @@ async function getResultContainer(
   );
 }
 
+async function isPrimarySearchResultProfileLink(
+  profileLink: Locator
+): Promise<boolean> {
+  const resultContainer =
+    profileLink.locator(
+      [
+        "xpath=ancestor::*[",
+        "@data-chameleon-result-urn",
+        " or contains(@class, 'reusable-search__result-container')",
+        " or contains(@class, 'entity-result')",
+        "][1]"
+      ].join("")
+    );
+
+  if (
+    await resultContainer.count() ===
+    0
+  ) {
+    return false;
+  }
+
+  const currentHref =
+    await profileLink
+      .getAttribute("href")
+      .catch(
+        () => null
+      );
+
+  if (!currentHref) {
+    return false;
+  }
+
+  const currentProfileUrl =
+    normalizeLinkedInUrl(
+      currentHref
+    );
+
+  const profileLinks =
+    resultContainer
+      .first()
+      .locator(
+        'a[href*="/in/"]'
+      );
+
+  const linkCount =
+    await profileLinks.count();
+
+  for (
+    let index = 0;
+    index < linkCount;
+    index += 1
+  ) {
+    const href =
+      await profileLinks
+        .nth(index)
+        .getAttribute("href")
+        .catch(
+          () => null
+        );
+
+    if (!href) {
+      continue;
+    }
+
+    const candidateUrl =
+      normalizeLinkedInUrl(
+        href
+      );
+
+    if (
+      !candidateUrl.includes(
+        "linkedin.com/in/"
+      )
+    ) {
+      continue;
+    }
+
+    /*
+     * The first LinkedIn profile URL inside a search-result card
+     * belongs to the actual search result.
+     *
+     * Additional /in/ URLs in the same card are commonly mutual
+     * connections or secondary profile references and must not be
+     * scanned as candidates.
+     */
+    return (
+      candidateUrl ===
+      currentProfileUrl
+    );
+  }
+
+  return false;
+}
+
 async function extractCandidateFromProfileLink(
   profileLink: Locator
 ): Promise<Candidate | null> {
@@ -827,6 +921,15 @@ async function scanCurrentPage(
         "linkedin.com/in/"
       )
     ) {
+      continue;
+    }
+
+    const isPrimaryProfile =
+      await isPrimarySearchResultProfileLink(
+        link
+      );
+
+    if (!isPrimaryProfile) {
       continue;
     }
 
