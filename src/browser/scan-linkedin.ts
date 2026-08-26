@@ -536,9 +536,20 @@ async function isPrimarySearchResultProfileLink(
     profileLink.locator(
       [
         "xpath=ancestor::*[",
+        "(",
         "@data-chameleon-result-urn",
         " or contains(@class, 'reusable-search__result-container')",
         " or contains(@class, 'entity-result')",
+        " or self::li",
+        ")",
+        " and (",
+        ".//button[contains(normalize-space(.), 'Connect')]",
+        " or .//button[contains(normalize-space(.), 'Message')]",
+        " or .//button[contains(normalize-space(.), 'Follow')]",
+        " or .//a[contains(normalize-space(.), 'Connect')]",
+        " or .//a[contains(normalize-space(.), 'Message')]",
+        " or .//a[contains(normalize-space(.), 'Follow')]",
+        ")",
         "][1]"
       ].join("")
     );
@@ -552,7 +563,9 @@ async function isPrimarySearchResultProfileLink(
 
   const currentHref =
     await profileLink
-      .getAttribute("href")
+      .getAttribute(
+        "href"
+      )
       .catch(
         () => null
       );
@@ -576,15 +589,24 @@ async function isPrimarySearchResultProfileLink(
   const linkCount =
     await profileLinks.count();
 
+  const seenUrls =
+    new Set<string>();
+
   for (
     let index = 0;
     index < linkCount;
     index += 1
   ) {
+    const candidateLink =
+      profileLinks.nth(
+        index
+      );
+
     const href =
-      await profileLinks
-        .nth(index)
-        .getAttribute("href")
+      await candidateLink
+        .getAttribute(
+          "href"
+        )
         .catch(
           () => null
         );
@@ -606,13 +628,24 @@ async function isPrimarySearchResultProfileLink(
       continue;
     }
 
+    if (
+      seenUrls.has(
+        candidateUrl
+      )
+    ) {
+      continue;
+    }
+
+    seenUrls.add(
+      candidateUrl
+    );
+
     /*
-     * The first LinkedIn profile URL inside a search-result card
-     * belongs to the actual search result.
+     * The first unique LinkedIn profile URL inside the actual
+     * search-result card is the result person's profile.
      *
-     * Additional /in/ URLs in the same card are commonly mutual
-     * connections or secondary profile references and must not be
-     * scanned as candidates.
+     * Later /in/ URLs in the same card are typically mutual
+     * connections or other secondary profile references.
      */
     return (
       candidateUrl ===
@@ -622,6 +655,7 @@ async function isPrimarySearchResultProfileLink(
 
   return false;
 }
+
 
 async function extractCandidateFromProfileLink(
   profileLink: Locator
