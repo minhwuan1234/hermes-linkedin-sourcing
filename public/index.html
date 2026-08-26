@@ -120,7 +120,7 @@
         <p
           class="mt-1 text-sm font-medium text-slate-400"
         >
-          LinkedIn profile, experience và email enrichment
+          LinkedIn profile, experience và email enrichment · GitHub JSON
         </p>
       </div>
 
@@ -131,7 +131,7 @@
           id="realtimeStatus"
           class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-500 shadow-sm"
         >
-          Connecting realtime
+          GitHub JSON
         </div>
 
         <button
@@ -406,21 +406,9 @@
     </section>
   </main>
 
-  <script src="/config.js"></script>
-
   <script type="module">
-    import {
-      createClient
-    } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-    const config =
-      window.APP_CONFIG ?? {};
-
-    const supabase =
-      createClient(
-        config.supabaseUrl,
-        config.supabaseAnonKey
-      );
+    const DATA_URL =
+      "https://raw.githubusercontent.com/minhwu1234/hermes-linkedin-sourcing/main/data/linkedin_candidates.json";
 
     const state = {
       candidates: [],
@@ -518,6 +506,23 @@
         .join("");
     }
 
+    function candidateId(
+      candidate,
+      index
+    ) {
+      return String(
+        candidate.id ??
+        candidate.profile_url ??
+        [
+          candidate.full_name ??
+            "candidate",
+          candidate.scanned_at ??
+            "unknown",
+          index
+        ].join("::")
+      );
+    }
+
     function badge(
       status,
       type
@@ -573,11 +578,17 @@
         }
       };
 
+      const fallbackStatus =
+        type === "email" &&
+        status == null
+          ? "pending"
+          : status;
+
       const [
         label,
         className
       ] =
-        maps[type][status] ??
+        maps[type][fallbackStatus] ??
         maps[type].pending;
 
       return `
@@ -607,6 +618,7 @@
         candidate.headline,
         candidate.location,
         candidate.current_company_hint,
+        candidate.current_position,
 
         ...emails,
 
@@ -808,13 +820,38 @@
                             "Unknown company"
                           )}
                         </p>
+
+                        ${
+                          experience.employment_type ||
+                          experience.location
+                            ? `
+                              <p
+                                class="mt-1 text-xs text-slate-400"
+                              >
+                                ${escapeHtml(
+                                  [
+                                    experience.employment_type,
+                                    experience.location
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                )}
+                              </p>
+                            `
+                            : ""
+                        }
                       </div>
 
                       <div
                         class="rounded-xl bg-[#f4f5f8] px-3 py-2 text-xs font-bold text-slate-600"
                       >
                         ${escapeHtml(
-                          experience.date_range_text ||
+                          [
+                            experience.date_range_text,
+                            experience.duration_text
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") ||
                           "—"
                         )}
                       </div>
@@ -855,7 +892,11 @@
           state.candidates.filter(
             (candidate) =>
               candidate.experience_scan_status ===
-              "completed"
+                "completed" ||
+              normalizeArray(
+                candidate.experiences
+              ).length >
+                0
           ).length
         );
 
@@ -897,10 +938,14 @@
         .innerHTML =
         candidates
           .map(
-            (candidate) => {
+            (
+              candidate,
+              index
+            ) => {
               const id =
-                String(
-                  candidate.id
+                candidateId(
+                  candidate,
+                  index
                 );
 
               const isExpanded =
@@ -916,6 +961,35 @@
               const current =
                 experiences[0] ??
                 null;
+
+              const experienceStatus =
+                candidate.experience_scan_status ??
+                (
+                  experiences.length >
+                  0
+                    ? "completed"
+                    : "pending"
+                );
+
+              const emails =
+                normalizeArray(
+                  candidate.emails
+                );
+
+              const emailStatus =
+                candidate.email_scan_status ??
+                (
+                  emails.length >
+                  0
+                    ? "completed"
+                    : "pending"
+                );
+
+              const profileUrl =
+                String(
+                  candidate.profile_url ??
+                  ""
+                ).trim();
 
               return `
                 <tr
@@ -983,6 +1057,7 @@
                   >
                     ${escapeHtml(
                       current?.job_title ||
+                      candidate.current_position ||
                       candidate.headline ||
                       "—"
                     )}
@@ -1004,7 +1079,7 @@
                       class="mb-2"
                     >
                       ${badge(
-                        candidate.experience_scan_status,
+                        experienceStatus,
                         "experience"
                       )}
                     </div>
@@ -1026,7 +1101,7 @@
                     class="px-5 py-4"
                   >
                     ${badge(
-                      candidate.email_scan_status,
+                      emailStatus,
                       "email"
                     )}
                   </td>
@@ -1034,17 +1109,32 @@
                   <td
                     class="px-5 py-4 text-right"
                   >
-                    <a
-                      href="${escapeHtml(candidate.profile_url)}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onclick="event.stopPropagation()"
-                      class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f4f5f8] text-[#0a66c2]"
-                    >
-                      <i
-                        class="fa-solid fa-arrow-up-right-from-square"
-                      ></i>
-                    </a>
+                    ${
+                      profileUrl
+                        ? `
+                          <a
+                            href="${escapeHtml(profileUrl)}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onclick="event.stopPropagation()"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f4f5f8] text-[#0a66c2]"
+                          >
+                            <i
+                              class="fa-solid fa-arrow-up-right-from-square"
+                            ></i>
+                          </a>
+                        `
+                        : `
+                          <span
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#f4f5f8] text-slate-300"
+                            title="Profile URL chưa có"
+                          >
+                            <i
+                              class="fa-solid fa-link-slash"
+                            ></i>
+                          </span>
+                        `
+                    }
                   </td>
                 </tr>
 
@@ -1161,99 +1251,109 @@
         .textContent =
         "Loading candidates...";
 
-      const {
-        data,
-        error
-      } =
-        await supabase
-          .from(
-            "linkedin_candidates"
-          )
-          .select(
-            [
-              "id",
-              "full_name",
-              "profile_url",
-              "headline",
-              "location",
-              "current_company_hint",
-              "action_type",
-              "scanned_at",
+      $("#realtimeStatus")
+        .textContent =
+        "Loading GitHub JSON";
 
-              "experiences",
-              "experience_count",
-              "experience_scan_status",
-              "experience_scanned_at",
-              "experience_scan_error",
+      try {
+        const separator =
+          DATA_URL.includes("?")
+            ? "&"
+            : "?";
 
-              "emails",
-              "work_email",
-              "personal_emails",
-              "email_count",
-              "email_source",
-              "email_scan_status",
-              "email_checked_at",
-              "email_scan_error"
-            ].join(",")
-          )
-          .order(
-            "scanned_at",
+        const response =
+          await fetch(
+            `${DATA_URL}${separator}t=${Date.now()}`,
             {
-              ascending:
-                false
+              cache:
+                "no-store"
             }
           );
 
-      if (error) {
+        if (!response.ok) {
+          throw new Error(
+            `GitHub JSON HTTP ${response.status}`
+          );
+        }
+
+        const data =
+          await response.json();
+
+        if (
+          !Array.isArray(
+            data
+          )
+        ) {
+          throw new Error(
+            "linkedin_candidates.json must contain a JSON array"
+          );
+        }
+
+        state.candidates =
+          data
+            .slice()
+            .sort(
+              (
+                a,
+                b
+              ) => {
+                const aTime =
+                  Date.parse(
+                    a.scanned_at ??
+                    ""
+                  ) || 0;
+
+                const bTime =
+                  Date.parse(
+                    b.scanned_at ??
+                    ""
+                  ) || 0;
+
+                return (
+                  bTime -
+                  aTime
+                );
+              }
+            );
+
+        $("#realtimeStatus")
+          .textContent =
+          "GitHub JSON connected";
+
+        render();
+      } catch (
+        error
+      ) {
         console.error(
           error
         );
+
+        state.candidates =
+          [];
+
+        $("#realtimeStatus")
+          .textContent =
+          "GitHub JSON error";
 
         $("#resultCount")
           .textContent =
           "Failed to load data";
 
-        return;
+        renderSummary();
+
+        $("#candidateRows")
+          .innerHTML =
+          "";
+
+        $("#emptyState")
+          .classList.remove(
+            "hidden"
+          );
+
+        $("#emptyState")
+          .textContent =
+          "Không tải được data từ GitHub.";
       }
-
-      state.candidates =
-        data ?? [];
-
-      render();
-    }
-
-    function subscribeRealtime() {
-      supabase
-        .channel(
-          "linkedin-candidates-dashboard"
-        )
-        .on(
-          "postgres_changes",
-          {
-            event:
-              "*",
-
-            schema:
-              "public",
-
-            table:
-              "linkedin_candidates"
-          },
-
-          () => {
-            loadCandidates();
-          }
-        )
-        .subscribe(
-          (status) => {
-            $("#realtimeStatus")
-              .textContent =
-              status ===
-              "SUBSCRIBED"
-                ? "Realtime connected"
-                : status;
-          }
-        );
     }
 
     $("#searchInput")
@@ -1281,8 +1381,6 @@
       );
 
     await loadCandidates();
-
-    subscribeRealtime();
   </script>
 </body>
 </html>
