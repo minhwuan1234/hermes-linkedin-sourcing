@@ -529,134 +529,6 @@ async function getResultContainer(
   );
 }
 
-async function isPrimarySearchResultProfileLink(
-  profileLink: Locator
-): Promise<boolean> {
-  const resultContainer =
-    profileLink.locator(
-      [
-        "xpath=ancestor::*[",
-        "(",
-        "@data-chameleon-result-urn",
-        " or contains(@class, 'reusable-search__result-container')",
-        " or contains(@class, 'entity-result')",
-        " or self::li",
-        ")",
-        " and (",
-        ".//button[contains(normalize-space(.), 'Connect')]",
-        " or .//button[contains(normalize-space(.), 'Message')]",
-        " or .//button[contains(normalize-space(.), 'Follow')]",
-        " or .//a[contains(normalize-space(.), 'Connect')]",
-        " or .//a[contains(normalize-space(.), 'Message')]",
-        " or .//a[contains(normalize-space(.), 'Follow')]",
-        ")",
-        "][1]"
-      ].join("")
-    );
-
-  if (
-    await resultContainer.count() ===
-    0
-  ) {
-    return false;
-  }
-
-  const currentHref =
-    await profileLink
-      .getAttribute(
-        "href"
-      )
-      .catch(
-        () => null
-      );
-
-  if (!currentHref) {
-    return false;
-  }
-
-  const currentProfileUrl =
-    normalizeLinkedInUrl(
-      currentHref
-    );
-
-  const profileLinks =
-    resultContainer
-      .first()
-      .locator(
-        'a[href*="/in/"]'
-      );
-
-  const linkCount =
-    await profileLinks.count();
-
-  const seenUrls =
-    new Set<string>();
-
-  for (
-    let index = 0;
-    index < linkCount;
-    index += 1
-  ) {
-    const candidateLink =
-      profileLinks.nth(
-        index
-      );
-
-    const href =
-      await candidateLink
-        .getAttribute(
-          "href"
-        )
-        .catch(
-          () => null
-        );
-
-    if (!href) {
-      continue;
-    }
-
-    const candidateUrl =
-      normalizeLinkedInUrl(
-        href
-      );
-
-    if (
-      !candidateUrl.includes(
-        "linkedin.com/in/"
-      )
-    ) {
-      continue;
-    }
-
-    if (
-      seenUrls.has(
-        candidateUrl
-      )
-    ) {
-      continue;
-    }
-
-    seenUrls.add(
-      candidateUrl
-    );
-
-    /*
-     * The first unique LinkedIn profile URL inside the actual
-     * search-result card is the result person's profile.
-     *
-     * Later /in/ URLs in the same card are typically mutual
-     * connections or other secondary profile references.
-     */
-    return (
-      candidateUrl ===
-      currentProfileUrl
-    );
-  }
-
-  return false;
-}
-
-
 async function extractCandidateFromProfileLink(
   profileLink: Locator
 ): Promise<Candidate | null> {
@@ -885,21 +757,27 @@ async function scanCurrentPage(
   pageNumber: number
 ): Promise<Candidate[]> {
   await page.waitForTimeout(
-    3_000
+    2_000
   );
 
   await scrollSearchResults(
     page
   );
 
-  const links =
+  /*
+   * Keep the original ZIP search logic:
+   * iterate LinkedIn result cards, not every /in/ link on the page.
+   * The first /in/ link in each result card is the actual candidate.
+   * Mutual connection profile links appear later inside the same card
+   * and are therefore ignored.
+   */
+  const cards =
     page.locator(
-      [
-        'main a[href*="/in/"]',
-        'div[role="main"] a[href*="/in/"]',
-        'a[href^="https://www.linkedin.com/in/"]'
-      ].join(", ")
+      'main li:has(a[href*="/in/"])'
     );
+
+  const count =
+    await cards.count();
 
   const candidates:
     Candidate[] = [];
@@ -907,12 +785,9 @@ async function scanCurrentPage(
   const seen =
     new Set<string>();
 
-  const count =
-    await links.count();
-
   console.log(
     `[Page ${pageNumber}] ` +
-    `${count} link tiềm năng`
+    `${count} card tiềm năng`
   );
 
   for (
@@ -920,13 +795,11 @@ async function scanCurrentPage(
     index < count;
     index += 1
   ) {
-    const link =
-      links.nth(
-        index
-      );
+    const card =
+      cards.nth(index);
 
     const visible =
-      await link
+      await card
         .isVisible()
         .catch(
           () => false
@@ -936,10 +809,25 @@ async function scanCurrentPage(
       continue;
     }
 
+    const profileLink =
+      card
+        .locator(
+          'a[href*="/in/"]'
+        )
+        .first();
+
+    if (
+      await profileLink.count() ===
+      0
+    ) {
+      continue;
+    }
+
     const href =
-      await link.getAttribute(
-        "href"
-      );
+      await profileLink
+        .getAttribute(
+          "href"
+        );
 
     if (!href) {
       continue;
@@ -958,15 +846,6 @@ async function scanCurrentPage(
       continue;
     }
 
-    const isPrimaryProfile =
-      await isPrimarySearchResultProfileLink(
-        link
-      );
-
-    if (!isPrimaryProfile) {
-      continue;
-    }
-
     if (
       seen.has(
         profileUrl
@@ -975,18 +854,18 @@ async function scanCurrentPage(
       continue;
     }
 
-    seen.add(
-      profileUrl
-    );
-
     const candidate =
       await extractCandidateFromProfileLink(
-        link
+        profileLink
       );
 
     if (!candidate) {
       continue;
     }
+
+    seen.add(
+      profileUrl
+    );
 
     candidates.push(
       candidate
